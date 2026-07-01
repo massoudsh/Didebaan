@@ -353,3 +353,155 @@ class AuditLog(models.Model):
     def __str__(self):
         return f"{self.timestamp.isoformat()} {self.method} {self.path} {self.status_code}"
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #31: Rule Versioning — track rule history (draft → active → inactive)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class RuleVersion(models.Model):
+    """
+    Immutable snapshot of a Rule each time it is saved.
+    Enables full audit trail: who changed what and when.
+    """
+    rule = models.ForeignKey(Rule, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.PositiveIntegerField(default=1)
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    configuration = models.JSONField(default=dict)
+    status = models.CharField(max_length=20)
+    priority = models.IntegerField(default=1)
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
+    changed_by = models.CharField(max_length=100, blank=True)
+    change_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = [('rule', 'version_number')]
+
+    def __str__(self):
+        return f"{self.rule.name} v{self.version_number} ({self.status})"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #32: Configurable Thresholds via Admin (no code-deploy needed)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ThresholdConfig(models.Model):
+    """
+    Admin-configurable thresholds so compliance officers can adjust limits
+    without re-deploying code. Used by Rule Engine & Risk Scorer.
+    """
+    THRESHOLD_TYPES = [
+        ('TRANSACTION_AMOUNT', 'حد مبلغ تراکنش'),
+        ('DAILY_AMOUNT', 'حد مبلغ روزانه'),
+        ('DAILY_COUNT', 'حد تعداد روزانه'),
+        ('CROSS_BORDER_AMOUNT', 'حد تراکنش بین‌المللی'),
+        ('STRUCTURING_AMOUNT', 'حد تشخیص تجزیه (Structuring)'),
+        ('CTR_THRESHOLD', 'آستانه گزارش تراکنش کلان (CTR)'),
+        ('SAR_RISK_SCORE', 'آستانه گزارش تراکنش مشکوک (SAR)'),
+    ]
+
+    name = models.CharField(max_length=200, unique=True, verbose_name='نام')
+    threshold_type = models.CharField(max_length=50, choices=THRESHOLD_TYPES, verbose_name='نوع آستانه')
+    value = models.DecimalField(max_digits=20, decimal_places=2, verbose_name='مقدار (ریال)')
+    description = models.TextField(blank=True, verbose_name='توضیحات')
+    is_active = models.BooleanField(default=True, verbose_name='فعال')
+    updated_by = models.CharField(max_length=100, blank=True, verbose_name='ویرایش توسط')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['threshold_type', 'name']
+        verbose_name = 'آستانه پیکربندی'
+        verbose_name_plural = 'آستانه‌های پیکربندی'
+
+    def __str__(self):
+        return f"{self.name}: {self.value:,.0f} ریال"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #33: SAR/CTR Submission Workflow (status, comments, audit trail)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ReportComment(models.Model):
+    """
+    Workflow comments for SAR/CTR reports — tracks status changes,
+    reviewer notes, and regulatory submission history.
+    """
+    COMMENT_TYPES = [
+        ('COMMENT', 'یادداشت'),
+        ('STATUS_CHANGE', 'تغییر وضعیت'),
+        ('SUBMISSION', 'ارسال به رگولاتور'),
+        ('APPROVAL', 'تایید'),
+        ('REJECTION', 'رد'),
+    ]
+
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='comments',
+                               verbose_name='گزارش')
+    comment_type = models.CharField(max_length=20, choices=COMMENT_TYPES,
+                                    default='COMMENT', verbose_name='نوع')
+    previous_status = models.CharField(max_length=20, blank=True, verbose_name='وضعیت قبلی')
+    new_status = models.CharField(max_length=20, blank=True, verbose_name='وضعیت جدید')
+    comment = models.TextField(verbose_name='متن یادداشت')
+    author = models.CharField(max_length=100, verbose_name='نویسنده')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'یادداشت گزارش'
+        verbose_name_plural = 'یادداشت‌های گزارش'
+
+    def __str__(self):
+        return f"{self.report.report_id} — {self.comment_type} by {self.author}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #30: Notifications (email/webhook on high-severity alert)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Notification(models.Model):
+    """
+    Outbound notification record — email or webhook triggered by alerts.
+    """
+    NOTIFICATION_TYPES = [
+        ('EMAIL', 'ایمیل'),
+        ('WEBHOOK', 'Webhook'),
+        ('SMS', 'پیامک'),
+    ]
+
+    STATUS_CHOICES = [
+        ('PENDING', 'در انتظار'),
+        ('SENT', 'ارسال شد'),
+        ('FAILED', 'ناموفق'),
+    ]
+
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES,
+                                         verbose_name='نوع اعلان')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
+                              default='PENDING', verbose_name='وضعیت')
+    recipient = models.CharField(max_length=500, verbose_name='گیرنده')
+    subject = models.CharField(max_length=500, blank=True, verbose_name='موضوع')
+    message = models.TextField(verbose_name='متن')
+    related_alert = models.ForeignKey(
+        Alert, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notifications', verbose_name='هشدار مرتبط'
+    )
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name='زمان ارسال')
+    error_message = models.TextField(blank=True, verbose_name='خطا')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'اعلان'
+        verbose_name_plural = 'اعلان‌ها'
+
+    def __str__(self):
+        return f"{self.notification_type} → {self.recipient} ({self.status})"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #23: PEP (Politically Exposed Person) Flag on Customer
+# ─────────────────────────────────────────────────────────────────────────────
+# PEP field is added directly to Customer model via migration 0003.
+# See: 0003_iran_market_features.py

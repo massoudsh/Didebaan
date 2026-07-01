@@ -298,3 +298,184 @@ def get_rule_engine() -> RuleEngine:
         _rule_engine_instance = RuleEngine()
     return _rule_engine_instance
 
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issues #22-27: Additional AML Detection Rules for Iranian Market
+# ─────────────────────────────────────────────────────────────────────────────
+
+IRAN_HIGH_RISK_COUNTRIES = [
+    'KP', 'MM', 'AF', 'YE', 'SD', 'SS', 'SY', 'SO', 'LY', 'CD', 'CF', 'ML', 'HT', 'PK', 'VU',
+]
+
+# Countries under UN/FATF sanctions that Iran's FIU monitors for cross-border transactions
+IRAN_SANCTIONED_COUNTRIES = ['KP', 'SD', 'SY', 'SO', 'LY']
+
+
+class ExtendedRuleEngine(RuleEngine):
+    """
+    Extends the base RuleEngine with additional rules tailored for the Iranian market.
+    Issues #22 (behavioral velocity), #23 (PEP), #24 (concentration), #25 (velocity),
+    #26 (rapid movement), #27 (cross-border with sanctioned countries).
+    """
+
+    def _evaluate_rule(self, rule: Rule, transaction: Transaction) -> Dict:
+        """Extended rule evaluation with extra rule types."""
+        if rule.rule_type == 'PEP':
+            return self._evaluate_pep_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'VELOCITY':
+            return self._evaluate_velocity_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'CONCENTRATION':
+            return self._evaluate_concentration_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'SANCTIONED':
+            return self._evaluate_sanctioned_country_rule(rule, transaction, rule.configuration)
+        return super()._evaluate_rule(rule, transaction)
+
+    # ── Issue #23: PEP Rule ──────────────────────────────────────────────────
+    def _evaluate_pep_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Flag transactions from/to Politically Exposed Persons (PEP).
+        Iranian AML law requires enhanced due diligence for PEPs.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        customer = transaction.customer
+        is_pep = getattr(customer, 'is_pep', False)
+
+        if is_pep:
+            amount_threshold = Decimal(str(config.get('pep_amount_threshold', 50_000_000)))
+            if transaction.amount >= amount_threshold:
+                triggered = True
+                reason = (
+                    f"PEP customer ({customer.customer_id}) with high-value transaction: "
+                    f"{transaction.amount:,.0f} IRR"
+                )
+                risk_score = 85
+            else:
+                triggered = True
+                reason = f"Transaction from PEP customer: {customer.customer_id}"
+                risk_score = 60
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Issue #25: Velocity Rule ─────────────────────────────────────────────
+    def _evaluate_velocity_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Detect velocity anomalies: unusually high number of transactions
+        in a rolling window compared to the customer's historical baseline.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        window_hours = config.get('window_hours', 24)
+        count_threshold = config.get('count_threshold', 15)
+        amount_threshold = Decimal(str(config.get('amount_threshold', 0)))
+
+        lookback = timezone.now() - timedelta(hours=window_hours)
+        recent_txns = Transaction.objects.filter(
+            customer=transaction.customer,
+            transaction_date__gte=lookback,
+            status='COMPLETED',
+        )
+        count = recent_txns.count()
+        total_amount = recent_txns.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        if count >= count_threshold:
+            triggered = True
+            reason = f"Velocity: {count} transactions in {window_hours}h window (threshold: {count_threshold})"
+            risk_score = min(100, int(count / count_threshold * 60))
+
+        if amount_threshold > 0 and total_amount >= amount_threshold:
+            triggered = True
+            reason = (reason + " | " if reason else "") + (
+                f"Velocity amount: {total_amount:,.0f} IRR in {window_hours}h "
+                f"(threshold: {amount_threshold:,.0f})"
+            )
+            risk_score = max(risk_score, min(100, int(float(total_amount / amount_threshold) * 55)))
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Issue #24: Concentration Rule ────────────────────────────────────────
+    def _evaluate_concentration_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Detect fund concentration: a single counterparty receiving a large
+        portion of a customer's total outflow — potential money mule pattern.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        lookback_days = config.get('lookback_days', 30)
+        concentration_ratio = config.get('concentration_ratio', 0.7)  # 70%
+        min_total_amount = Decimal(str(config.get('min_total_amount', 10_000_000)))
+
+        lookback = timezone.now() - timedelta(days=lookback_days)
+        customer_total = Transaction.objects.filter(
+            customer=transaction.customer,
+            transaction_date__gte=lookback,
+            status='COMPLETED',
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        if customer_total < min_total_amount:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        # Amount going to the same receiver account
+        receiver = transaction.receiver_account
+        if not receiver:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        receiver_total = Transaction.objects.filter(
+            customer=transaction.customer,
+            transaction_date__gte=lookback,
+            receiver_account=receiver,
+            status='COMPLETED',
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        receiver_total += transaction.amount
+
+        if customer_total > 0:
+            ratio = float(receiver_total / customer_total)
+            if ratio >= concentration_ratio:
+                triggered = True
+                reason = (
+                    f"Fund concentration: {ratio:.0%} of outflow "
+                    f"({receiver_total:,.0f} / {customer_total:,.0f} IRR) "
+                    f"to single account {receiver}"
+                )
+                risk_score = min(100, int(ratio * 90))
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Issue #27: Cross-border with Sanctioned Countries ────────────────────
+    def _evaluate_sanctioned_country_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Flag any transaction — regardless of amount — where the receiving country
+        is on the UN/FATF sanction list. Issue #27.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        sanctioned = config.get('sanctioned_countries', IRAN_SANCTIONED_COUNTRIES)
+        if transaction.receiver_country in sanctioned:
+            triggered = True
+            reason = (
+                f"Transaction to sanctioned country: {transaction.receiver_country} "
+                f"(amount: {transaction.amount:,.0f} IRR)"
+            )
+            risk_score = 95  # Near-maximum — must escalate
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+
+# ─── Update singleton to use ExtendedRuleEngine ──────────────────────────────
+
+def get_rule_engine() -> ExtendedRuleEngine:
+    """Get singleton instance of ExtendedRuleEngine (replaces base get_rule_engine)."""
+    global _rule_engine_instance
+    if _rule_engine_instance is None:
+        _rule_engine_instance = ExtendedRuleEngine()
+    return _rule_engine_instance

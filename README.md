@@ -212,3 +212,164 @@ python manage.py test
 
 این پروژه برای چالش RegMeet طراحی شده است.
 
+
+---
+
+## تطبیق با بازار ایران
+
+این سیستم بر اساس الزامات قانونی جمهوری اسلامی ایران و رهنمودهای بانک مرکزی طراحی شده است:
+
+| ویژگی | مقدار |
+|------|-------|
+| پول رایج | ریال (IRR) |
+| زبان رابط | فارسی (RTL) |
+| منطقه زمانی | Asia/Tehran |
+| آستانه CTR | ۵۰۰,۰۰۰,۰۰۰ ریال |
+| نهاد نظارتی | بانک مرکزی جمهوری اسلامی ایران — واحد اطلاعات مالی (FIU) |
+| انواع گزارش | SAR (گزارش تراکنش مشکوک)، CTR (گزارش تراکنش کلان) |
+
+### کشورهای پرریسک (FATF-based)
+KP (کره شمالی)، MM (میانمار)، AF (افغانستان)، YE (یمن)، SD (سودان)، SS (سودان جنوبی)، SY (سوریه)، SO (سومالی)، LY (لیبی)، CD (کنگو)، ML (مالی)، HT (هائیتی)، PK (پاکستان)، VU (وانواتو)
+
+---
+
+## API Examples (Issue #35)
+
+### دریافت Token
+```bash
+curl -X POST http://localhost:8000/api/auth/token/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your_password"}'
+# Response: {"token": "abc123..."}
+```
+
+### لیست مشتریان
+```bash
+curl -H "Authorization: Token abc123..." \
+  "http://localhost:8000/api/customers/?current_risk_level=HIGH"
+```
+
+### ایجاد مشتری (با PEP flag)
+```bash
+curl -X POST http://localhost:8000/api/customers/ \
+  -H "Authorization: Token abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "C-001",
+    "first_name": "محمد",
+    "last_name": "رضایی",
+    "email": "m.rezaei@example.ir",
+    "phone": "+989121234567",
+    "customer_type": "INDIVIDUAL",
+    "national_id": "0012345678",
+    "country": "IR",
+    "is_pep": false
+  }'
+```
+
+### ایجاد تراکنش
+```bash
+curl -X POST http://localhost:8000/api/transactions/ \
+  -H "Authorization: Token abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id": "TXN-2026-001",
+    "customer": "C-001",
+    "transaction_type": "TRANSFER",
+    "amount": "500000000",
+    "currency": "IRR",
+    "status": "COMPLETED",
+    "receiver_account": "IR12-0000-0000-0000-0000-0000",
+    "receiver_country": "IR"
+  }'
+```
+
+### نظارت بر تراکنش (AML monitoring)
+```bash
+curl -X POST http://localhost:8000/api/transactions/monitor/ \
+  -H "Authorization: Token abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"transaction_id": "TXN-2026-001"}'
+```
+
+### تولید گزارش CTR
+```bash
+curl -X POST http://localhost:8000/api/reports/generate/ \
+  -H "Authorization: Token abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "report_type": "CTR",
+    "period_start": "2026-06-01T00:00:00Z",
+    "period_end": "2026-06-30T23:59:59Z",
+    "threshold": "500000000",
+    "format": "JSON"
+  }'
+```
+
+### بررسی هشدار
+```bash
+curl -X POST http://localhost:8000/api/alerts/ALT-001/review/ \
+  -H "Authorization: Token abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"status": "RESOLVED", "notes": "تراکنش تجاری معتبر — مستندات تایید شد"}'
+```
+
+### آمار هشدارها
+```bash
+curl -H "Authorization: Token abc123..." \
+  "http://localhost:8000/api/alerts/statistics/?days=30"
+```
+
+### وضعیت سرویس (بدون احراز هویت)
+```bash
+curl http://localhost:8000/api/health/
+curl http://localhost:8000/api/ready/
+```
+
+---
+
+## اجرا با Docker (Issue #37)
+
+```bash
+# کپی env
+cp .env.example .env
+# ویرایش .env و تنظیم SECRET_KEY و DB_PASSWORD
+
+# ساخت و اجرا
+docker-compose up -d
+
+# مشاهده لاگ
+docker-compose logs -f app
+```
+
+---
+
+## مسائل حل‌شده (Resolved Issues)
+
+| # | عنوان | وضعیت |
+|---|-------|--------|
+| #2 | Security hardening (CSRF, HSTS, secure cookies) | ✅ |
+| #3 | Makefile (make run, migrate, test) | ✅ |
+| #4 | API documentation (OpenAPI/Swagger) | ✅ |
+| #5 | Health/readiness endpoints | ✅ |
+| #6 | Unit tests for core services | ✅ |
+| #7/#11 | Token authentication (JWT/DRF Token) | ✅ |
+| #8/#12 | Filtering, search, ordering on list endpoints | ✅ |
+| #9 | Django Admin customization | ✅ |
+| #10 | Dashboard (alerts, risk distribution) | ✅ |
+| #13 | Rate limiting (per user/IP) | ✅ |
+| #23 | PEP rule + field | ✅ |
+| #24 | Fund concentration rule | ✅ |
+| #25 | Velocity detection rule | ✅ |
+| #27 | Cross-border with sanctioned countries | ✅ |
+| #28 | Structuring scenario test | ✅ |
+| #29 | Layering scenario test | ✅ |
+| #30 | Notifications (email/webhook) | ✅ |
+| #31 | Rule versioning (draft→active, history) | ✅ |
+| #32 | Configurable thresholds via Admin | ✅ |
+| #33 | SAR/CTR submission workflow (comments, audit) | ✅ |
+| #34 | ML risk model stub | ✅ |
+| #35 | API examples (curl) in README | ✅ |
+| #36 | Replace placeholder XX/YY with real FATF countries | ✅ |
+| #37 | Dockerfile + docker-compose | ✅ |
+| #38 | CI (GitHub Actions) — test, lint, migrate-check | ✅ |

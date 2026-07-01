@@ -1,0 +1,88 @@
+# Regalion AML — Docker Compose
+# Issue #37: Full stack: app + PostgreSQL + Redis
+# Usage: docker-compose up -d
+
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: regalion_aml
+      POSTGRES_USER: regalion
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U regalion -d regalion_aml"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DJANGO_ENV: production
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-in-production}
+      USE_POSTGRES: "true"
+      DB_NAME: regalion_aml
+      DB_USER: regalion
+      DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      DB_HOST: db
+      DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      USE_HTTPS: ${USE_HTTPS:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_logs:/app/logs
+      - app_static:/app/staticfiles
+
+  celery:
+    build: .
+    restart: unless-stopped
+    command: celery -A config worker --loglevel=info --concurrency=2
+    environment:
+      DJANGO_ENV: production
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-in-production}
+      USE_POSTGRES: "true"
+      DB_NAME: regalion_aml
+      DB_USER: regalion
+      DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      DB_HOST: db
+      DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+      - app
+    volumes:
+      - app_logs:/app/logs
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_logs:
+  app_static:

@@ -44,3 +44,27 @@ create-sample-rules:
 
 check:
 	$(MANAGE) check
+
+# Docker targets (Issue #37)
+docker-build:
+	docker build -t regalion-aml .
+
+docker-up:
+	docker-compose up -d
+
+docker-down:
+	docker-compose down
+
+docker-logs:
+	docker-compose logs -f app
+
+# Iran market setup
+setup-iran:
+	$(MANAGE) migrate
+	$(MANAGE) createsuperuser --noinput || true
+	$(MANAGE) create_sample_rules
+	@echo "Iranian market setup complete."
+
+# Lint (Issue #38)
+lint:
+	cd backend && flake8 . --max-line-length=120 --exclude=migrations,venv,.git,__pycache__

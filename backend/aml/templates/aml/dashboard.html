@@ -1,96 +1,116 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Regalion AML</title>
+  <title>Regalion AML — سامانه مبارزه با پول‌شویی</title>
   <style>
     * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      margin: 0;
-      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      direction: rtl;
+      margin: 0; padding: 0;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       min-height: 100vh;
       color: #e2e8f0;
     }
-    .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
-    h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-      color: #f8fafc;
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+    .header { border-bottom: 1px solid rgba(71,85,105,0.4); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+    h1 { font-size: 2rem; font-weight: 700; margin: 0 0 0.25rem; color: #f8fafc; }
+    .badge {
+      display: inline-block; background: #0ea5e9; color: #fff;
+      font-size: 0.7rem; padding: 2px 8px; border-radius: 99px;
+      vertical-align: middle; margin-right: 8px;
     }
-    .subtitle { color: #94a3b8; margin-bottom: 2rem; font-size: 0.95rem; }
+    .subtitle { color: #94a3b8; font-size: 0.95rem; margin: 0; }
     .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 1rem; margin-bottom: 2rem;
     }
     .card {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(71, 85, 105, 0.5);
-      border-radius: 12px;
-      padding: 1.25rem;
-      text-align: center;
+      background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 12px; padding: 1.4rem 1.25rem; text-align: center;
+      transition: border-color 0.2s;
     }
-    .card .num { font-size: 2rem; font-weight: 700; color: #38bdf8; }
-    .card .label { font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem; }
-    .links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      margin-top: 1.5rem;
-    }
+    .card:hover { border-color: #38bdf8; }
+    .card .num { font-size: 2.2rem; font-weight: 700; color: #38bdf8; }
+    .card .label { font-size: 0.9rem; color: #94a3b8; margin-top: 0.3rem; }
+    .card.alert-card .num { color: #f87171; }
+    .section-title { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 0 0 0.75rem; }
+    .links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2rem; }
     .links a {
-      display: inline-block;
-      padding: 0.6rem 1.2rem;
-      background: #334155;
-      color: #e2e8f0;
-      text-decoration: none;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      border: 1px solid #475569;
+      display: inline-block; padding: 0.55rem 1.1rem; background: #1e293b;
+      color: #cbd5e1; text-decoration: none; border-radius: 8px;
+      font-size: 0.88rem; border: 1px solid #334155; transition: background 0.15s;
     }
-    .links a:hover { background: #475569; color: #fff; }
+    .links a:hover { background: #334155; color: #f1f5f9; }
     .links a.primary { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
     .links a.primary:hover { background: #0284c7; }
-    .footer { margin-top: 2rem; font-size: 0.8rem; color: #64748b; }
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .info-card {
+      background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(71, 85, 105, 0.35);
+      border-radius: 10px; padding: 1rem 1.25rem;
+    }
+    .info-card h3 { font-size: 0.8rem; color: #64748b; margin: 0 0 0.5rem; text-transform: uppercase; }
+    .info-card p { font-size: 0.9rem; color: #cbd5e1; margin: 0; line-height: 1.6; }
+    .footer { margin-top: 2rem; font-size: 0.78rem; color: #475569; border-top: 1px solid rgba(71,85,105,0.3); padding-top: 1rem; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Regalion AML</h1>
-    <p class="subtitle">Anti–Money Laundering • Transaction monitoring & risk scoring</p>
+    <div class="header">
+      <h1>Regalion AML <span class="badge">ایران</span></h1>
+      <p class="subtitle">سامانه مبارزه با پول‌شویی &nbsp;&middot;&nbsp; نظارت بر تراکنش و امتیازدهی ریسک &nbsp;&middot;&nbsp; گزارش‌دهی رگولاتوری</p>
+    </div>
 
     <div class="cards">
       <div class="card">
         <div class="num">{{ customers }}</div>
-        <div class="label">Customers</div>
+        <div class="label">مشتریان</div>
       </div>
       <div class="card">
         <div class="num">{{ transactions }}</div>
-        <div class="label">Transactions</div>
+        <div class="label">تراکنش‌ها</div>
       </div>
-      <div class="card">
+      <div class="card alert-card">
         <div class="num">{{ alerts_open }}</div>
-        <div class="label">Open alerts</div>
+        <div class="label">هشدارهای باز</div>
       </div>
       <div class="card">
         <div class="num">{{ rules }}</div>
-        <div class="label">Rules</div>
+        <div class="label">قوانین فعال</div>
       </div>
     </div>
 
+    <p class="section-title">دسترسی سریع</p>
     <div class="links">
-      <a href="{% url 'admin:index' %}" class="primary">Admin</a>
-      <a href="/api/">API root</a>
-      <a href="/api/health/">Health</a>
-      <a href="/api/schema/">API schema</a>
+      <a href="{% url 'admin:index' %}" class="primary">پنل مدیریت</a>
+      <a href="/api/">API</a>
+      <a href="/api/health/">وضعیت سرویس</a>
+      <a href="/api/schema/">مستندات API</a>
+      <a href="/api/alerts/">هشدارها</a>
+      <a href="/api/reports/">گزارش‌ها</a>
     </div>
 
-    <p class="footer">Regalion AML • Django + DRF</p>
+    <div class="info-grid">
+      <div class="info-card">
+        <h3>نهاد نظارتی</h3>
+        <p>بانک مرکزی جمهوری اسلامی ایران<br>واحد اطلاعات مالی (FIU)</p>
+      </div>
+      <div class="info-card">
+        <h3>پول رایج</h3>
+        <p>ریال ایران (IRR)<br>آستانه CTR: ۵۰۰,۰۰۰,۰۰۰ ریال</p>
+      </div>
+      <div class="info-card">
+        <h3>انواع گزارش</h3>
+        <p>گزارش تراکنش مشکوک (SAR)<br>گزارش تراکنش کلان (CTR)</p>
+      </div>
+    </div>
+
+    <p class="footer">Regalion AML &nbsp;&middot;&nbsp; Django + DRF &nbsp;&middot;&nbsp; تطبیق‌یافته با بازار ایران</p>
   </div>
 </body>
 </html>

@@ -121,7 +121,7 @@ class Command(BaseCommand):
                 'rule_type': 'GEOGRAPHIC',
                 'status': 'ACTIVE',
                 'configuration': {
-                    'high_risk_countries': ['XX', 'YY'],  # Replace with actual high-risk countries
+                    'high_risk_countries': ['KP','MM','AF','YE','SD','SS','SY','SO','LY','CD','CF','ML','HT','PK','VU'],
                     'cross_border_threshold': 5000000
                 },
                 'priority': 6,
@@ -133,5 +133,104 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING(f'Rule already exists: {rule6.name}'))
         
-        self.stdout.write(self.style.SUCCESS('\nSample rules creation completed!'))
+        self._create_iran_market_rules()
+        self.stdout.write(self.style.SUCCESS('\nAll rules created successfully.'))
 
+
+    def _create_iran_market_rules(self):
+        """
+        Create additional rules for the Iranian market (#22-27, #36).
+        Call after the base rules are created.
+        """
+
+        # Rule 7: PEP Detection (Issue #23)
+        rule7, created = Rule.objects.get_or_create(
+            name='PEP Transaction Detection',
+            defaults={
+                'description': 'تشخیص تراکنش‌های اشخاص در معرض خطر سیاسی (PEP) — '
+                               'الزامی طبق دستورالعمل بانک مرکزی',
+                'rule_type': 'PEP',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'pep_amount_threshold': 50_000_000,  # 50M IRR
+                },
+                'priority': 1,
+                'risk_weight': 2.5,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule7.name}'))
+
+        # Rule 8: Velocity Detection (Issue #25)
+        rule8, created = Rule.objects.get_or_create(
+            name='Transaction Velocity Detection',
+            defaults={
+                'description': 'تشخیص سرعت غیرعادی تراکنش‌ها در بازه زمانی',
+                'rule_type': 'VELOCITY',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'window_hours': 24,
+                    'count_threshold': 15,
+                    'amount_threshold': 100_000_000,  # 100M IRR/day
+                },
+                'priority': 2,
+                'risk_weight': 1.8,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule8.name}'))
+
+        # Rule 9: Fund Concentration (Issue #24)
+        rule9, created = Rule.objects.get_or_create(
+            name='Fund Concentration Detection',
+            defaults={
+                'description': 'تشخیص تمرکز وجوه — بخش بزرگی از خروجی به یک حساب واحد',
+                'rule_type': 'CONCENTRATION',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'lookback_days': 30,
+                    'concentration_ratio': 0.70,
+                    'min_total_amount': 10_000_000,  # 10M IRR minimum total
+                },
+                'priority': 3,
+                'risk_weight': 1.7,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule9.name}'))
+
+        # Rule 10: Sanctioned Countries Cross-Border (Issue #27)
+        rule10, created = Rule.objects.get_or_create(
+            name='Sanctioned Country Transfer',
+            defaults={
+                'description': 'تشخیص انتقال وجه به کشورهای تحت تحریم سازمان ملل/FATF',
+                'rule_type': 'SANCTIONED',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'sanctioned_countries': ['KP', 'SD', 'SY', 'SO', 'LY'],
+                },
+                'priority': 1,
+                'risk_weight': 3.0,  # Highest weight
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule10.name}'))
+
+        # Rule 11: CTR Threshold — Bank Markazi standard (Issue #32)
+        rule11, created = Rule.objects.get_or_create(
+            name='CTR Threshold (Bank Markazi)',
+            defaults={
+                'description': 'آستانه گزارش تراکنش کلان — ۵۰۰ میلیون ریال (بر اساس دستورالعمل بانک مرکزی)',
+                'rule_type': 'THRESHOLD',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'amount_threshold': 500_000_000,  # 500M IRR = ~50M Toman
+                },
+                'priority': 1,
+                'risk_weight': 1.5,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule11.name}'))
+
+        self.stdout.write(self.style.SUCCESS('Iranian market rules created successfully.'))

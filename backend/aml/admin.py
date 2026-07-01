@@ -9,9 +9,9 @@ from .models import Customer, Transaction, Alert, RiskScore, Rule, Report
 # --- Custom AdminSite with dashboard (counts + recent alerts) ---
 
 class AMLAdminSite(admin.AdminSite):
-    site_header = 'Regalion AML'
-    site_title = 'Regalion AML Admin'
-    index_title = 'Overview'
+    site_header = 'Regalion AML — سامانه مبارزه با پول‌شویی'
+    site_title = 'Regalion AML'
+    index_title = 'نمای کلی سامانه'
 
     index_template = 'admin/aml_index.html'
 
@@ -176,3 +176,54 @@ aml_admin_site.register(Rule, RuleAdmin)
 aml_admin_site.register(Alert, AlertAdmin)
 aml_admin_site.register(RiskScore, RiskScoreAdmin)
 aml_admin_site.register(Report, ReportAdmin)
+
+
+# ─── New models for issues #30, #31, #32, #33 ────────────────────────────────
+
+from .models import RuleVersion, ThresholdConfig, ReportComment, Notification
+
+
+class ThresholdConfigAdmin(admin.ModelAdmin):
+    list_display = ('name', 'threshold_type', 'value', 'is_active', 'updated_by', 'updated_at')
+    list_filter = ('threshold_type', 'is_active')
+    search_fields = ('name', 'description')
+    readonly_fields = ('created_at', 'updated_at')
+    list_editable = ('is_active',)
+    ordering = ('threshold_type', 'name')
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user.get_username()
+        super().save_model(request, obj, form, change)
+
+
+class RuleVersionAdmin(admin.ModelAdmin):
+    list_display = ('rule', 'version_number', 'status', 'changed_by', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('rule__name', 'changed_by')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    list_per_page = 25
+
+
+class ReportCommentAdmin(admin.ModelAdmin):
+    list_display = ('report', 'comment_type', 'previous_status', 'new_status', 'author', 'created_at')
+    list_filter = ('comment_type',)
+    search_fields = ('report__report_id', 'author', 'comment')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    list_per_page = 25
+
+
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('notification_type', 'recipient', 'subject', 'status', 'related_alert', 'created_at')
+    list_filter = ('notification_type', 'status')
+    search_fields = ('recipient', 'subject')
+    readonly_fields = ('created_at', 'sent_at')
+    ordering = ('-created_at',)
+    list_per_page = 25
+
+
+aml_admin_site.register(ThresholdConfig, ThresholdConfigAdmin)
+aml_admin_site.register(RuleVersion, RuleVersionAdmin)
+aml_admin_site.register(ReportComment, ReportCommentAdmin)
+aml_admin_site.register(Notification, NotificationAdmin)

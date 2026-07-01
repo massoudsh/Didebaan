@@ -2,54 +2,53 @@
 {% load i18n %}
 
 {% block content %}
-{# AML dashboard: counts + recent alerts #}
-<div id="content-main">
+<div id="content-main" dir="rtl" style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
   <div class="module aml-dashboard" style="margin-bottom: 20px;">
-    <h2>Regalion AML — Overview</h2>
+    <h2 style="color:#003366;">Regalion AML — نمای کلی</h2>
     <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0;">
-      <div class="card" style="background: #417690; color: #fff; padding: 1rem 1.5rem; border-radius: 8px; min-width: 120px;">
-        <strong style="font-size: 1.5rem;">{{ aml_customers_count }}</strong>
-        <div>Customers</div>
+      <div style="background:#417690;color:#fff;padding:1rem 1.5rem;border-radius:8px;min-width:130px;text-align:center;">
+        <strong style="font-size:1.5rem;">{{ aml_customers_count }}</strong>
+        <div>مشتریان</div>
       </div>
-      <div class="card" style="background: #417690; color: #fff; padding: 1rem 1.5rem; border-radius: 8px; min-width: 120px;">
-        <strong style="font-size: 1.5rem;">{{ aml_transactions_count }}</strong>
-        <div>Transactions</div>
+      <div style="background:#417690;color:#fff;padding:1rem 1.5rem;border-radius:8px;min-width:130px;text-align:center;">
+        <strong style="font-size:1.5rem;">{{ aml_transactions_count }}</strong>
+        <div>تراکنش‌ها</div>
       </div>
-      <div class="card" style="background: #ba2121; color: #fff; padding: 1rem 1.5rem; border-radius: 8px; min-width: 120px;">
-        <strong style="font-size: 1.5rem;">{{ aml_alerts_open_count }}</strong>
-        <div>Open alerts</div>
+      <div style="background:#ba2121;color:#fff;padding:1rem 1.5rem;border-radius:8px;min-width:130px;text-align:center;">
+        <strong style="font-size:1.5rem;">{{ aml_alerts_open_count }}</strong>
+        <div>هشدارهای باز</div>
       </div>
-      <div class="card" style="background: #417690; color: #fff; padding: 1rem 1.5rem; border-radius: 8px; min-width: 120px;">
-        <strong style="font-size: 1.5rem;">{{ aml_rules_count }}</strong>
-        <div>Rules</div>
+      <div style="background:#417690;color:#fff;padding:1rem 1.5rem;border-radius:8px;min-width:130px;text-align:center;">
+        <strong style="font-size:1.5rem;">{{ aml_rules_count }}</strong>
+        <div>قوانین</div>
       </div>
     </div>
     {% if aml_recent_alerts %}
-    <h3>Recent alerts</h3>
-    <table style="width: 100%; border-collapse: collapse;">
+    <h3>هشدارهای اخیر</h3>
+    <table style="width:100%;border-collapse:collapse;">
       <thead>
-        <tr style="background: #f8f8f8;">
-          <th style="text-align: left; padding: 6px 8px;">Alert</th>
-          <th style="text-align: left; padding: 6px 8px;">Customer</th>
-          <th style="text-align: left; padding: 6px 8px;">Severity</th>
-          <th style="text-align: left; padding: 6px 8px;">Status</th>
-          <th style="text-align: left; padding: 6px 8px;">Created</th>
+        <tr style="background:#f8f8f8;">
+          <th style="text-align:right;padding:6px 8px;">هشدار</th>
+          <th style="text-align:right;padding:6px 8px;">مشتری</th>
+          <th style="text-align:right;padding:6px 8px;">شدت</th>
+          <th style="text-align:right;padding:6px 8px;">وضعیت</th>
+          <th style="text-align:right;padding:6px 8px;">تاریخ</th>
         </tr>
       </thead>
       <tbody>
         {% for alert in aml_recent_alerts %}
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 6px 8px;"><a href="{% url 'aml_admin:aml_alert_change' alert.pk %}">{{ alert.alert_id }}</a></td>
-          <td style="padding: 6px 8px;">{{ alert.customer.customer_id }}</td>
-          <td style="padding: 6px 8px;">{{ alert.severity }}</td>
-          <td style="padding: 6px 8px;">{{ alert.status }}</td>
-          <td style="padding: 6px 8px;">{{ alert.created_at|date:"Y-m-d H:i" }}</td>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:6px 8px;"><a href="{% url 'aml_admin:aml_alert_change' alert.pk %}">{{ alert.alert_id }}</a></td>
+          <td style="padding:6px 8px;">{{ alert.customer.customer_id }}</td>
+          <td style="padding:6px 8px;">{{ alert.severity }}</td>
+          <td style="padding:6px 8px;">{{ alert.status }}</td>
+          <td style="padding:6px 8px;">{{ alert.created_at|date:"Y-m-d H:i" }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <p>No alerts yet.</p>
+    <p>هنوز هشداری ثبت نشده است.</p>
     {% endif %}
   </div>
   {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}

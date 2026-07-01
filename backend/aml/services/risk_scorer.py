@@ -235,7 +235,23 @@ class RiskScorer:
     def _calculate_geographic_risk(self, transaction: Transaction) -> Decimal:
         """Calculate risk based on geographic factors"""
         # High-risk countries list (example)
-        high_risk_countries = ['XX', 'YY']  # Replace with actual high-risk countries
+        high_risk_countries = [
+            'KP',  # كره شمالي
+            'MM',  # ميانمار
+            'AF',  # افغانستان
+            'YE',  # يمن
+            'SD',  # سودان
+            'SS',  # سودان جنوبي
+            'SY',  # سوريه
+            'SO',  # سومالي
+            'LY',  # ليبي
+            'CD',  # كنگو
+            'CF',  # افريقاي مركزي
+            'ML',  # مالي
+            'HT',  # هائيتي
+            'PK',  # پاكستان
+            'VU',  # وانواتو
+        ]
         
         if transaction.receiver_country in high_risk_countries:
             return Decimal('90')
@@ -343,7 +359,7 @@ class RiskScorer:
     def _calculate_customer_geographic_risk(self, customer: Customer) -> Decimal:
         """Calculate risk based on customer's geographic location"""
         # High-risk countries (example)
-        high_risk_countries = ['XX', 'YY']
+        high_risk_countries = ['KP','MM','AF','YE','SD','SS','SY','SO','LY','CD','CF','ML','HT','PK','VU']
         
         if customer.country in high_risk_countries:
             return Decimal('80')
