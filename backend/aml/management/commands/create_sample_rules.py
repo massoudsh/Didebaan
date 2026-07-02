@@ -233,4 +233,66 @@ class Command(BaseCommand):
         if created:
             self.stdout.write(self.style.SUCCESS(f'Created rule: {rule11.name}'))
 
+        # Rule 12: Night/Weekend Activity (Issue #23)
+        rule12, created = Rule.objects.get_or_create(
+            name='Night/Weekend Activity Detection',
+            defaults={
+                'description': 'تشخیص تراکنش‌های مشکوک در ساعات شبانه و روزهای تعطیل (پنج‌شنبه و جمعه)',
+                'rule_type': 'NIGHT_WEEKEND',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'night_start_hour': 22,
+                    'night_end_hour': 7,
+                    'night_amount_threshold': 50_000_000,
+                    'weekend_amount_threshold': 100_000_000,
+                },
+                'priority': 2,
+                'risk_weight': 1.5,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule12.name}'))
+
+        # Rule 13: Round Amount / Structuring (Issue #24)
+        rule13, created = Rule.objects.get_or_create(
+            name='Round Amount Structuring',
+            defaults={
+                'description': 'تشخیص الگوی تجزیه وجه با مبالغ گرد (ساختاربندی)',
+                'rule_type': 'ROUND_AMOUNT',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'round_thresholds': [10_000_000, 50_000_000, 100_000_000, 500_000_000],
+                    'min_amount': 10_000_000,
+                    'lookback_days': 30,
+                    'min_round_count': 3,
+                },
+                'priority': 2,
+                'risk_weight': 2.0,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule13.name}'))
+
+        # Rule 14: New Account Velocity (Issue #26)
+        rule14, created = Rule.objects.get_or_create(
+            name='New Account Velocity',
+            defaults={
+                'description': 'کنترل تعداد و حجم تراکنش‌های حساب‌های تازه‌تأسیس (۳۰ و ۹۰ روز اول)',
+                'rule_type': 'NEW_ACCOUNT',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'new_account_days_30': 30,
+                    'new_account_days_90': 90,
+                    'max_daily_count_30d': 5,
+                    'max_daily_amount_30d': 50_000_000,
+                    'max_daily_count_90d': 10,
+                    'max_daily_amount_90d': 200_000_000,
+                },
+                'priority': 2,
+                'risk_weight': 2.0,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule14.name}'))
+
         self.stdout.write(self.style.SUCCESS('Iranian market rules created successfully.'))

@@ -588,3 +588,269 @@ class ThresholdConfigTest(TestCase):
         )
         active = ThresholdConfig.objects.filter(is_active=True)
         self.assertEqual(active.count(), 1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #23: Night/Weekend Activity Detection Rule Test
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NightWeekendRuleTest(TestCase):
+    """
+    Issue #23: Transactions at night or on Iran's weekends (Thu/Fri)
+    above the configured threshold should trigger the NIGHT_WEEKEND rule.
+    """
+
+    def setUp(self):
+        self.customer = Customer.objects.create(
+            customer_id='NW001',
+            first_name='بهنام',
+            last_name='نوری',
+            email='behnam@test.ir',
+            country='IR',
+        )
+        Rule.objects.create(
+            name='Night/Weekend Activity',
+            description='Detect suspicious night and weekend transactions',
+            rule_type='NIGHT_WEEKEND',
+            status='ACTIVE',
+            configuration={
+                'night_start_hour': 22,
+                'night_end_hour': 7,
+                'night_amount_threshold': 50_000_000,
+                'weekend_amount_threshold': 100_000_000,
+            },
+            priority=2,
+        )
+
+    def test_night_transaction_triggers(self):
+        """Large transaction at 23:00 Tehran time should trigger rule."""
+        import pytz
+        tehran = pytz.timezone('Asia/Tehran')
+        # Build a naive datetime at 23:00 today and make it aware in Tehran tz
+        now = timezone.now().astimezone(tehran)
+        night_time = now.replace(hour=23, minute=0, second=0, microsecond=0)
+
+        txn = Transaction.objects.create(
+            transaction_id='NW_NIGHT_001',
+            customer=self.customer,
+            transaction_type='TRANSFER',
+            amount=Decimal('80000000'),  # 80M IRR — above 50M threshold
+            currency='IRR',
+            status='COMPLETED',
+            transaction_date=night_time,
+        )
+        rule_engine = get_rule_engine()
+        triggered, _, _ = rule_engine.evaluate_transaction(txn)
+        night_triggered = any(r.rule_type == 'NIGHT_WEEKEND' for r in triggered)
+        self.assertTrue(night_triggered, "Night transaction rule should trigger at 23:00")
+
+    def test_small_night_transaction_does_not_trigger(self):
+        """Small transaction at night (below threshold) must NOT trigger."""
+        import pytz
+        tehran = pytz.timezone('Asia/Tehran')
+        now = timezone.now().astimezone(tehran)
+        night_time = now.replace(hour=23, minute=30, second=0, microsecond=0)
+
+        txn = Transaction.objects.create(
+            transaction_id='NW_SMALL_001',
+            customer=self.customer,
+            transaction_type='TRANSFER',
+            amount=Decimal('1000000'),  # 1M IRR — below threshold
+            currency='IRR',
+            status='COMPLETED',
+            transaction_date=night_time,
+        )
+        rule_engine = get_rule_engine()
+        triggered, _, _ = rule_engine.evaluate_transaction(txn)
+        night_triggered = any(r.rule_type == 'NIGHT_WEEKEND' for r in triggered)
+        self.assertFalse(night_triggered, "Small night transaction should NOT trigger")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #24: Round-amount / Structuring Pattern Rule Test
+# ─────────────────────────────────────────────────────────────────────────────
+
+class RoundAmountRuleTest(TestCase):
+    """
+    Issue #24: Multiple round-number transactions in a short window
+    indicate structuring and should trigger the ROUND_AMOUNT rule.
+    """
+
+    def setUp(self):
+        self.customer = Customer.objects.create(
+            customer_id='RA001',
+            first_name='فرید',
+            last_name='طاهری',
+            email='farid@test.ir',
+            country='IR',
+        )
+        Rule.objects.create(
+            name='Round Amount Structuring',
+            description='Detect round-number structuring transactions',
+            rule_type='ROUND_AMOUNT',
+            status='ACTIVE',
+            configuration={
+                'round_thresholds': [10_000_000, 50_000_000, 100_000_000],
+                'min_amount': 10_000_000,
+                'lookback_days': 30,
+                'min_round_count': 3,
+            },
+            priority=2,
+        )
+
+    def test_repeated_round_amounts_trigger(self):
+        """3 or more transactions with round amounts should trigger."""
+        # Create 2 completed round-amount transactions
+        base = timezone.now() - timedelta(days=2)
+        for i in range(2):
+            Transaction.objects.create(
+                transaction_id=f'RA_PREV_{i:03d}',
+                customer=self.customer,
+                transaction_type='TRANSFER',
+                amount=Decimal('50000000'),  # 50M (round)
+                currency='IRR',
+                status='COMPLETED',
+                transaction_date=base - timedelta(days=i),
+            )
+
+        # Third round transaction — should trigger
+        txn = Transaction.objects.create(
+            transaction_id='RA_CURRENT',
+            customer=self.customer,
+            transaction_type='TRANSFER',
+            amount=Decimal('100000000'),  # 100M (round)
+            currency='IRR',
+            status='COMPLETED',
+        )
+        rule_engine = get_rule_engine()
+        triggered, _, _ = rule_engine.evaluate_transaction(txn)
+        round_triggered = any(r.rule_type == 'ROUND_AMOUNT' for r in triggered)
+        self.assertTrue(round_triggered, "Round-amount rule should trigger after 3 round transactions")
+
+    def test_non_round_amount_does_not_trigger(self):
+        """Non-round amount must NOT trigger the round-amount rule."""
+        txn = Transaction.objects.create(
+            transaction_id='RA_NONROUND',
+            customer=self.customer,
+            transaction_type='TRANSFER',
+            amount=Decimal('37500000'),  # 37.5M — not a round number
+            currency='IRR',
+            status='COMPLETED',
+        )
+        rule_engine = get_rule_engine()
+        triggered, _, _ = rule_engine.evaluate_transaction(txn)
+        round_triggered = any(r.rule_type == 'ROUND_AMOUNT' for r in triggered)
+        self.assertFalse(round_triggered, "Non-round amount should NOT trigger the rule")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #26: New-account Velocity Rule Test
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NewAccountVelocityRuleTest(TestCase):
+    """
+    Issue #26: New accounts (first 30 or 90 days) with abnormally high
+    daily transaction count or amount should trigger the NEW_ACCOUNT rule.
+    """
+
+    def setUp(self):
+        # Account created 10 days ago (within 30-day window)
+        self.new_customer = Customer.objects.create(
+            customer_id='NEW001',
+            first_name='نیلوفر',
+            last_name='صادقی',
+            email='nilufar@test.ir',
+            country='IR',
+            registration_date=timezone.now() - timedelta(days=10),
+        )
+        # Old account (over 90 days old — rule should not apply)
+        self.old_customer = Customer.objects.create(
+            customer_id='OLD001',
+            first_name='رضا',
+            last_name='منصوری',
+            email='reza@test.ir',
+            country='IR',
+            registration_date=timezone.now() - timedelta(days=200),
+        )
+        Rule.objects.create(
+            name='New Account Velocity',
+            description='Detect velocity abuse on new accounts',
+            rule_type='NEW_ACCOUNT',
+            status='ACTIVE',
+            configuration={
+                'new_account_days_30': 30,
+                'new_account_days_90': 90,
+                'max_daily_count_30d': 5,
+                'max_daily_amount_30d': 50_000_000,
+                'max_daily_count_90d': 10,
+                'max_daily_amount_90d': 200_000_000,
+            },
+            priority=2,
+        )
+
+    def test_new_account_over_daily_count_triggers(self):
+        """6 transactions in a day on a new account (limit=5) should trigger."""
+        today = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0)
+        for i in range(5):
+            Transaction.objects.create(
+                transaction_id=f'NA_PREV_{i:03d}',
+                customer=self.new_customer,
+                transaction_type='TRANSFER',
+                amount=Decimal('5000000'),
+                currency='IRR',
+                status='COMPLETED',
+                transaction_date=today - timedelta(hours=i),
+            )
+
+        txn = Transaction.objects.create(
+            transaction_id='NA_OVER_COUNT',
+            customer=self.new_customer,
+            transaction_type='TRANSFER',
+            amount=Decimal('5000000'),
+            currency='IRR',
+            status='COMPLETED',
+            transaction_date=today,
+        )
+        rule_engine = get_rule_engine()
+        triggered, _, _ = rule_engine.evaluate_transaction(txn)
+        na_triggered = any(r.rule_type == 'NEW_ACCOUNT' for r in triggered)
+        self.assertTrue(na_triggered, "New-account velocity rule should trigger (count exceeded)")
+
+    def test_old_account_not_affected(self):
+        """Old account (>90 days) must NOT trigger the new-account rule."""
+        txn = Transaction.objects.create(
+            transaction_id='OLD_ACCT_TXN',
+            customer=self.old_customer,
+            transaction_type='TRANSFER',
+            amount=Decimal('200000000'),
+            currency='IRR',
+            status='COMPLETED',
+        )
+        rule_engine = get_rule_engine()
+        triggered, _, _ = rule_engine.evaluate_transaction(txn)
+        na_triggered = any(r.rule_type == 'NEW_ACCOUNT' for r in triggered)
+        self.assertFalse(na_triggered, "Old account should NOT trigger new-account velocity rule")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #15: Bulk Export Test
+# ─────────────────────────────────────────────────────────────────────────────
+
+class BulkExportTest(TestCase):
+    """Issue #15: Bulk CSV/Excel export for alerts requires authentication."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.user = User.objects.create_user('exporter', password='testpass123')
+        self.client = Client()
+        self.client.login(username='exporter', password='testpass123')
+
+    def test_csv_export_returns_200(self):
+        r = self.client.get('/api/alerts/export/?format=csv')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('text/csv', r['Content-Type'])
+
+    def test_xlsx_export_returns_200(self):
+        r = self.client.get('/api/alerts/export/?format=xlsx')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('spreadsheetml', r['Content-Type'])

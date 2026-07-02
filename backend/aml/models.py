@@ -134,6 +134,14 @@ class Rule(models.Model):
         ('PATTERN', 'Pattern-based'),
         ('BEHAVIORAL', 'Behavioral'),
         ('GEOGRAPHIC', 'Geographic'),
+        # Extended rules for Iranian market
+        ('PEP', 'PEP — Politically Exposed Person'),
+        ('VELOCITY', 'Velocity — Transaction Frequency'),
+        ('CONCENTRATION', 'Concentration — Same Beneficiary'),
+        ('SANCTIONED', 'Sanctioned Country — Cross-border'),
+        ('NIGHT_WEEKEND', 'Night/Weekend Activity'),
+        ('ROUND_AMOUNT', 'Round-amount / Structuring Pattern'),
+        ('NEW_ACCOUNT', 'New-account Velocity (30/90 days)'),
     ]
     
     STATUS_CHOICES = [

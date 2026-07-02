@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'corsheaders',
+    'drf_spectacular',
     'aml',
 ]
 
@@ -111,6 +112,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.AnonRateThrottle',
@@ -136,6 +138,31 @@ CACHES = {
 
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Regalion AML API',
+    'DESCRIPTION': (
+        'سیستم مبارزه با پول‌شویی — تطبیق‌یافته با بازار ایران\n\n'
+        'API برای مدیریت مشتریان، تراکنش‌ها، هشدارها، قوانین و گزارش‌های SAR/CTR.'
+    ),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {'name': 'Regalion AML', 'email': 'aml@regalion.ir'},
+    'LICENSE': {'name': 'Proprietary'},
+    'TAGS': [
+        {'name': 'customers', 'description': 'مدیریت مشتریان (KYC)'},
+        {'name': 'transactions', 'description': 'نظارت بر تراکنش‌ها'},
+        {'name': 'alerts', 'description': 'هشدارهای مشکوک'},
+        {'name': 'rules', 'description': 'قوانین AML'},
+        {'name': 'reports', 'description': 'گزارش‌های SAR/CTR'},
+        {'name': 'audit-log', 'description': 'گزارش حسابرسی (audit trail)'},
+        {'name': 'health', 'description': 'وضعیت سرویس'},
+    ],
+}
 
 LOGGING = {
     'version': 1,

@@ -1,71 +1,173 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Regalion AML — سامانه مبارزه با پول‌شویی</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    * { box-sizing: border-box; }
+    /* Issue #21: CSS Variables for Dark/Light Theme */
+    :root[data-theme="dark"] {
+      --bg-main: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      --bg-card: rgba(30, 41, 59, 0.85);
+      --bg-card2: rgba(30, 41, 59, 0.6);
+      --border: rgba(71, 85, 105, 0.5);
+      --border2: rgba(71, 85, 105, 0.35);
+      --text-main: #e2e8f0;
+      --text-head: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-label: #94a3b8;
+      --text-info: #cbd5e1;
+      --accent: #38bdf8;
+      --link-bg: #1e293b;
+      --link-border: #334155;
+      --link-color: #cbd5e1;
+      --link-hover: #334155;
+      --link-hover-color: #f1f5f9;
+      --primary-btn: #0ea5e9;
+      --footer: #475569;
+      --alert-num: #f87171;
+    }
+    :root[data-theme="light"] {
+      --bg-main: linear-gradient(135deg, #f0f4f8 0%, #e2eaf2 100%);
+      --bg-card: rgba(255,255,255,0.95);
+      --bg-card2: rgba(248,250,252,0.9);
+      --border: rgba(148,163,184,0.5);
+      --border2: rgba(148,163,184,0.3);
+      --text-main: #1e293b;
+      --text-head: #0f172a;
+      --text-sub: #475569;
+      --text-label: #64748b;
+      --text-info: #334155;
+      --accent: #0284c7;
+      --link-bg: #f1f5f9;
+      --link-border: #cbd5e1;
+      --link-color: #334155;
+      --link-hover: #e2e8f0;
+      --link-hover-color: #0f172a;
+      --primary-btn: #0284c7;
+      --footer: #94a3b8;
+      --alert-num: #dc2626;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
       direction: rtl;
-      margin: 0; padding: 0;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      background: var(--bg-main);
       min-height: 100vh;
-      color: #e2e8f0;
+      color: var(--text-main);
+      transition: background 0.3s, color 0.3s;
     }
-    .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
-    .header { border-bottom: 1px solid rgba(71,85,105,0.4); padding-bottom: 1.25rem; margin-bottom: 2rem; }
-    h1 { font-size: 2rem; font-weight: 700; margin: 0 0 0.25rem; color: #f8fafc; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    h1 { font-size: 2rem; font-weight: 700; color: var(--text-head); }
     .badge {
-      display: inline-block; background: #0ea5e9; color: #fff;
+      display: inline-block; background: var(--primary-btn); color: #fff;
       font-size: 0.7rem; padding: 2px 8px; border-radius: 99px;
       vertical-align: middle; margin-right: 8px;
     }
-    .subtitle { color: #94a3b8; font-size: 0.95rem; margin: 0; }
+    .subtitle { color: var(--text-sub); font-size: 0.95rem; margin-top: 0.25rem; }
+
+    /* Issue #21: Theme Toggle */
+    .theme-toggle {
+      flex-shrink: 0;
+      background: var(--link-bg);
+      border: 1px solid var(--link-border);
+      color: var(--link-color);
+      border-radius: 8px;
+      padding: 0.45rem 1rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    .theme-toggle:hover { background: var(--link-hover); }
+
     .cards {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-      gap: 1rem; margin-bottom: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
     }
     .card {
-      background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(71, 85, 105, 0.5);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 12px; padding: 1.4rem 1.25rem; text-align: center;
       transition: border-color 0.2s;
     }
-    .card:hover { border-color: #38bdf8; }
-    .card .num { font-size: 2.2rem; font-weight: 700; color: #38bdf8; }
-    .card .label { font-size: 0.9rem; color: #94a3b8; margin-top: 0.3rem; }
-    .card.alert-card .num { color: #f87171; }
-    .section-title { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 0 0 0.75rem; }
+    .card:hover { border-color: var(--accent); }
+    .card .num { font-size: 2.2rem; font-weight: 700; color: var(--accent); }
+    .card .label { font-size: 0.9rem; color: var(--text-label); margin-top: 0.3rem; }
+    .card.alert-card .num { color: var(--alert-num); }
+
+    .section-title { font-size: 1rem; font-weight: 600; color: var(--text-info); margin: 0 0 0.75rem; }
+
+    /* Issue #19: Charts grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .chart-card h3 {
+      font-size: 0.8rem; color: var(--text-label);
+      margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .chart-card canvas { max-height: 200px; }
+
     .links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2rem; }
     .links a {
-      display: inline-block; padding: 0.55rem 1.1rem; background: #1e293b;
-      color: #cbd5e1; text-decoration: none; border-radius: 8px;
-      font-size: 0.88rem; border: 1px solid #334155; transition: background 0.15s;
+      display: inline-block; padding: 0.55rem 1.1rem;
+      background: var(--link-bg); color: var(--link-color);
+      text-decoration: none; border-radius: 8px;
+      font-size: 0.88rem; border: 1px solid var(--link-border);
+      transition: background 0.15s;
     }
-    .links a:hover { background: #334155; color: #f1f5f9; }
-    .links a.primary { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
-    .links a.primary:hover { background: #0284c7; }
+    .links a:hover { background: var(--link-hover); color: var(--link-hover-color); }
+    .links a.primary { background: var(--primary-btn); color: #fff; border-color: var(--primary-btn); }
+    .links a.primary:hover { opacity: 0.9; }
+
     .info-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
       gap: 1rem; margin-bottom: 2rem;
     }
     .info-card {
-      background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(71, 85, 105, 0.35);
+      background: var(--bg-card2); border: 1px solid var(--border2);
       border-radius: 10px; padding: 1rem 1.25rem;
     }
-    .info-card h3 { font-size: 0.8rem; color: #64748b; margin: 0 0 0.5rem; text-transform: uppercase; }
-    .info-card p { font-size: 0.9rem; color: #cbd5e1; margin: 0; line-height: 1.6; }
-    .footer { margin-top: 2rem; font-size: 0.78rem; color: #475569; border-top: 1px solid rgba(71,85,105,0.3); padding-top: 1rem; }
+    .info-card h3 { font-size: 0.8rem; color: var(--text-label); margin-bottom: 0.5rem; text-transform: uppercase; }
+    .info-card p { font-size: 0.9rem; color: var(--text-info); line-height: 1.6; }
+
+    .footer { margin-top: 2rem; font-size: 0.78rem; color: var(--footer); border-top: 1px solid var(--border2); padding-top: 1rem; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>Regalion AML <span class="badge">ایران</span></h1>
-      <p class="subtitle">سامانه مبارزه با پول‌شویی &nbsp;&middot;&nbsp; نظارت بر تراکنش و امتیازدهی ریسک &nbsp;&middot;&nbsp; گزارش‌دهی رگولاتوری</p>
+      <div>
+        <h1>Regalion AML <span class="badge">ایران</span></h1>
+        <p class="subtitle">سامانه مبارزه با پول‌شویی &nbsp;&middot;&nbsp; نظارت بر تراکنش و امتیازدهی ریسک &nbsp;&middot;&nbsp; گزارش‌دهی رگولاتوری</p>
+      </div>
+      <!-- Issue #21: Theme Toggle Button -->
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">☀️ روشن</button>
     </div>
 
+    <!-- Summary counts -->
     <div class="cards">
       <div class="card">
         <div class="num">{{ customers }}</div>
@@ -85,13 +187,34 @@
       </div>
     </div>
 
+    <!-- Issue #19: Charts -->
+    <p class="section-title">نمودار وضعیت</p>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>توزیع هشدار بر اساس شدت</h3>
+        <canvas id="severityChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>توزیع ریسک مشتریان</h3>
+        <canvas id="riskChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>روند هشدارها (۷ روز اخیر)</h3>
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Quick links -->
     <p class="section-title">دسترسی سریع</p>
     <div class="links">
-      <a href="{% url 'admin:index' %}" class="primary">پنل مدیریت</a>
+      <a href="{% url 'aml_admin:index' %}" class="primary">پنل مدیریت</a>
       <a href="/api/">API</a>
+      <a href="/api/docs/">مستندات Swagger</a>
+      <a href="/api/redoc/">مستندات ReDoc</a>
       <a href="/api/health/">وضعیت سرویس</a>
-      <a href="/api/schema/">مستندات API</a>
       <a href="/api/alerts/">هشدارها</a>
+      <a href="/api/alerts/export/?format=csv">خروجی CSV هشدارها</a>
+      <a href="/api/alerts/export/?format=xlsx">خروجی Excel هشدارها</a>
       <a href="/api/reports/">گزارش‌ها</a>
     </div>
 
@@ -112,5 +235,128 @@
 
     <p class="footer">Regalion AML &nbsp;&middot;&nbsp; Django + DRF &nbsp;&middot;&nbsp; تطبیق‌یافته با بازار ایران</p>
   </div>
+
+  <script>
+    /* ── Issue #21: Theme Toggle ── */
+    function toggleTheme() {
+      const html = document.documentElement;
+      const btn = document.getElementById('themeToggle');
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      btn.textContent = next === 'dark' ? '☀️ روشن' : '🌙 تیره';
+      localStorage.setItem('aml-theme', next);
+      updateChartColors();
+    }
+
+    // Restore saved theme on load
+    (function () {
+      const saved = localStorage.getItem('aml-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+
+    /* ── Issue #19: Charts ── */
+    const severityLabels = {{ severity_labels_json|safe }};
+    const severityData   = {{ severity_data_json|safe }};
+    const severityColors = {{ severity_colors_json|safe }};
+    const riskLabels     = {{ risk_labels_json|safe }};
+    const riskData       = {{ risk_data_json|safe }};
+    const trendLabels    = {{ trend_labels_json|safe }};
+    const trendData      = {{ trend_data_json|safe }};
+
+    const riskColorMap = {
+      LOW: '#22c55e', MEDIUM: '#f59e0b',
+      HIGH: '#ef4444', CRITICAL: '#7c3aed'
+    };
+
+    let charts = {};
+
+    function chartColors() {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return {
+        text:  dark ? '#94a3b8' : '#475569',
+        grid:  dark ? 'rgba(148,163,184,0.12)' : 'rgba(71,85,105,0.15)',
+      };
+    }
+
+    function initCharts() {
+      Chart.defaults.font.family = "'Segoe UI', Tahoma, Arial, sans-serif";
+      const { text, grid } = chartColors();
+
+      charts.severity = new Chart(document.getElementById('severityChart'), {
+        type: 'doughnut',
+        data: {
+          labels: severityLabels,
+          datasets: [{ data: severityData, backgroundColor: severityColors, borderWidth: 2, borderColor: 'transparent' }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom', labels: { color: text, padding: 10, font: { size: 11 } } } }
+        }
+      });
+
+      charts.risk = new Chart(document.getElementById('riskChart'), {
+        type: 'doughnut',
+        data: {
+          labels: riskLabels,
+          datasets: [{
+            data: riskData,
+            backgroundColor: riskLabels.map(l => riskColorMap[l] || '#64748b'),
+            borderWidth: 2, borderColor: 'transparent'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom', labels: { color: text, padding: 10, font: { size: 11 } } } }
+        }
+      });
+
+      charts.trend = new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+          labels: trendLabels,
+          datasets: [{
+            label: 'هشدارها', data: trendData,
+            borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)',
+            fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#38bdf8'
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { ticks: { color: text }, grid: { color: grid } },
+            y: { ticks: { color: text, stepSize: 1 }, grid: { color: grid }, beginAtZero: true }
+          },
+          plugins: { legend: { labels: { color: text } } }
+        }
+      });
+    }
+
+    function updateChartColors() {
+      const { text, grid } = chartColors();
+      ['severity', 'risk'].forEach(k => {
+        if (!charts[k]) return;
+        charts[k].options.plugins.legend.labels.color = text;
+        charts[k].update();
+      });
+      if (charts.trend) {
+        ['x','y'].forEach(ax => {
+          charts.trend.options.scales[ax].ticks.color = text;
+          charts.trend.options.scales[ax].grid.color = grid;
+        });
+        charts.trend.options.plugins.legend.labels.color = text;
+        charts.trend.update();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      // Sync toggle button text with restored theme
+      const btn = document.getElementById('themeToggle');
+      const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+      btn.textContent = theme === 'dark' ? '☀️ روشن' : '🌙 تیره';
+
+      initCharts();
+    });
+  </script>
 </body>
 </html>

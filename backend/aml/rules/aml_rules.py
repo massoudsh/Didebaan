@@ -3,6 +3,7 @@ AML Rule Engine
 Implements configurable rules for detecting suspicious transactions
 """
 import logging
+import pytz
 from decimal import Decimal
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -329,6 +330,12 @@ class ExtendedRuleEngine(RuleEngine):
             return self._evaluate_concentration_rule(rule, transaction, rule.configuration)
         elif rule.rule_type == 'SANCTIONED':
             return self._evaluate_sanctioned_country_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'NIGHT_WEEKEND':
+            return self._evaluate_night_weekend_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'ROUND_AMOUNT':
+            return self._evaluate_round_amount_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'NEW_ACCOUNT':
+            return self._evaluate_new_account_velocity_rule(rule, transaction, rule.configuration)
         return super()._evaluate_rule(rule, transaction)
 
     # ── Issue #23: PEP Rule ──────────────────────────────────────────────────
@@ -467,6 +474,182 @@ class ExtendedRuleEngine(RuleEngine):
                 f"(amount: {transaction.amount:,.0f} IRR)"
             )
             risk_score = 95  # Near-maximum — must escalate
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+
+    # ── Issue #23: Night/Weekend Activity Detection ──────────────────────────
+    def _evaluate_night_weekend_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Issue #23: Detect transactions during unusual hours (night) or weekends.
+        In Iranian market context, transactions outside business hours (9:00–18:00
+        Saturday–Wednesday) raise suspicion, especially for large amounts.
+        Iran's weekend is Thursday–Friday.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        # Parse transaction time in Tehran timezone
+        tehran_tz = pytz.timezone('Asia/Tehran')
+        try:
+            txn_dt = transaction.transaction_date
+            if txn_dt.tzinfo is None:
+                txn_dt = timezone.make_aware(txn_dt, tehran_tz)
+            txn_local = txn_dt.astimezone(tehran_tz)
+        except Exception:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        hour = txn_local.hour
+        # Python weekday(): Monday=0, ..., Friday=4, Saturday=5, Sunday=6
+        # Iran weekend: Thursday=3, Friday=4
+        weekday = txn_local.weekday()
+        is_weekend = weekday in (3, 4)  # Thursday, Friday
+
+        night_start = config.get('night_start_hour', 22)
+        night_end = config.get('night_end_hour', 7)
+        night_amount_threshold = Decimal(str(config.get('night_amount_threshold', 50_000_000)))
+        weekend_amount_threshold = Decimal(str(config.get('weekend_amount_threshold', 100_000_000)))
+
+        is_night = hour >= night_start or hour < night_end
+
+        if is_night and transaction.amount >= night_amount_threshold:
+            triggered = True
+            reason = (
+                f"تراکنش در ساعت غیرعادی {txn_local.strftime('%H:%M')} "
+                f"به مبلغ {transaction.amount:,.0f} ریال"
+            )
+            risk_score = 65
+
+        if is_weekend and transaction.amount >= weekend_amount_threshold:
+            triggered = True
+            day_name = 'پنج‌شنبه' if weekday == 3 else 'جمعه'
+            reason = (reason + ' | ' if reason else '') + (
+                f"تراکنش در روز {day_name} "
+                f"به مبلغ {transaction.amount:,.0f} ریال"
+            )
+            risk_score = max(risk_score, 60)
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Issue #24: Round-amount / Structuring Pattern ────────────────────────
+    def _evaluate_round_amount_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Issue #24: Detect round-number transactions often used in structuring.
+        Transactions with amounts that are exact multiples of large round numbers
+        (e.g., 10M, 50M, 100M IRR) are a classic money-laundering indicator.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        # Thresholds for "round" amounts (in IRR)
+        round_thresholds = config.get('round_thresholds', [
+            10_000_000,   # 10M
+            50_000_000,   # 50M
+            100_000_000,  # 100M
+            500_000_000,  # 500M
+        ])
+        min_amount = Decimal(str(config.get('min_amount', 10_000_000)))
+        lookback_days = config.get('lookback_days', 30)
+        min_round_count = config.get('min_round_count', 3)
+
+        if transaction.amount < min_amount:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        # Check if current transaction is a round number
+        amount_int = int(transaction.amount)
+        is_round = any(amount_int % int(t) == 0 for t in round_thresholds)
+
+        if not is_round:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        # Count recent round-amount transactions
+        lookback = timezone.now() - timedelta(days=lookback_days)
+        recent_txns = Transaction.objects.filter(
+            customer=transaction.customer,
+            transaction_date__gte=lookback,
+            status='COMPLETED',
+        )
+
+        round_count = 0
+        for t in recent_txns:
+            t_int = int(t.amount)
+            if any(t_int % int(thresh) == 0 for thresh in round_thresholds):
+                round_count += 1
+
+        # Include current transaction
+        round_count += 1
+
+        if round_count >= min_round_count:
+            triggered = True
+            reason = (
+                f"الگوی تجزیه مبلغ گرد: {round_count} تراکنش با مبلغ گرد "
+                f"در {lookback_days} روز اخیر (مبلغ فعلی: {transaction.amount:,.0f} ریال)"
+            )
+            risk_score = min(100, 50 + round_count * 10)
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Issue #26: New-account Velocity Rule ─────────────────────────────────
+    def _evaluate_new_account_velocity_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Issue #26: Detect unusually high transaction velocity for new accounts.
+        Accounts in the first 30 or 90 days are held to tighter limits as
+        they are common targets for money mule setups in Iran.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        customer = transaction.customer
+        account_age_days = (timezone.now() - customer.registration_date).days
+
+        new_account_days_30 = config.get('new_account_days_30', 30)
+        new_account_days_90 = config.get('new_account_days_90', 90)
+
+        # Apply limits only for accounts within the window
+        if account_age_days > new_account_days_90:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        # Tighter limits for very new accounts (0–30 days)
+        if account_age_days <= new_account_days_30:
+            max_daily_count = config.get('max_daily_count_30d', 5)
+            max_daily_amount = Decimal(str(config.get('max_daily_amount_30d', 50_000_000)))
+            window_label = '۳۰ روز اول'
+        else:
+            max_daily_count = config.get('max_daily_count_90d', 10)
+            max_daily_amount = Decimal(str(config.get('max_daily_amount_90d', 200_000_000)))
+            window_label = '۹۰ روز اول'
+
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_txns = Transaction.objects.filter(
+            customer=customer,
+            transaction_date__gte=today_start,
+            status='COMPLETED',
+        )
+        today_count = today_txns.count()
+        today_amount = today_txns.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Include current transaction
+        today_count += 1
+        today_amount += transaction.amount
+
+        if today_count > max_daily_count:
+            triggered = True
+            reason = (
+                f"حساب جدید ({window_label}، {account_age_days} روزه): "
+                f"{today_count} تراکنش امروز (حداکثر مجاز: {max_daily_count})"
+            )
+            risk_score = min(100, 60 + (today_count - max_daily_count) * 5)
+
+        if today_amount > max_daily_amount:
+            triggered = True
+            reason = (reason + ' | ' if reason else '') + (
+                f"حساب جدید ({window_label}، {account_age_days} روزه): "
+                f"مجموع امروز {today_amount:,.0f} ریال (حداکثر مجاز: {max_daily_amount:,.0f})"
+            )
+            risk_score = max(risk_score, min(100, int(float(today_amount / max_daily_amount) * 70)))
 
         return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
 
