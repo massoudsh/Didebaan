@@ -1,4 +1,4 @@
-# Regalion AML — Docker Compose
+# Didebaan AML — Docker Compose
 # Issue #37: Full stack: app + PostgreSQL + Redis
 # Usage: docker-compose up -d
 
@@ -9,13 +9,13 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: regalion_aml
-      POSTGRES_USER: regalion
+      POSTGRES_DB: didebaan_aml
+      POSTGRES_USER: didebaan
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U regalion -d regalion_aml"]
+      test: ["CMD-SHELL", "pg_isready -U didebaan -d didebaan_aml"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,8 +39,8 @@ services:
       DJANGO_ENV: production
       SECRET_KEY: ${SECRET_KEY:-django-insecure-change-in-production}
       USE_POSTGRES: "true"
-      DB_NAME: regalion_aml
-      DB_USER: regalion
+      DB_NAME: didebaan_aml
+      DB_USER: didebaan
       DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
       DB_HOST: db
       DB_PORT: "5432"
@@ -67,8 +67,8 @@ services:
       DJANGO_ENV: production
       SECRET_KEY: ${SECRET_KEY:-django-insecure-change-in-production}
       USE_POSTGRES: "true"
-      DB_NAME: regalion_aml
-      DB_USER: regalion
+      DB_NAME: didebaan_aml
+      DB_USER: didebaan
       DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
       DB_HOST: db
       DB_PORT: "5432"

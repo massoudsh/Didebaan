@@ -1,5 +1,5 @@
 """
-Celery application configuration for Regalion AML System.
+Celery application configuration for Didebaan AML System.
 Issue #14: Async transaction monitoring via Celery + Redis.
 """
 import os
@@ -7,7 +7,7 @@ from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
 
-app = Celery('regalion_aml')
+app = Celery('didebaan_aml')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 

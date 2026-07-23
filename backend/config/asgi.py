@@ -1,5 +1,5 @@
 """
-ASGI config for Regalion AML System.
+ASGI config for Didebaan AML System.
 """
 
 import os

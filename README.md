@@ -1,12 +1,15 @@
-# Regalion AML System
+# Didebaan — موتور هوشمند تشخیص تقلب و سوءاستفاده
 
-سیستم Anti Money Laundering (AML) برای نظارت بر تراکنش‌ها، تشخیص فعالیت‌های مشکوک و گزارش‌دهی به رگولاتور.
+دیده‌بان (Didebaan) یک موتور هوشمند تشخیص تقلب و سوءاستفاده (Fraud & Abuse Intelligence Engine) برای فین‌تک‌های ایرانی است: نظارت بر تراکنش‌ها و مشتریان، شناسایی حلقه‌های حساب مرتبط از طریق اشتراک دستگاه (device sharing)، تشخیص سوءاستفاده فروشندگان (merchant abuse) و ریسک نکول در BNPL، در کنار ماژول‌های اصلی AML/CTR/SAR.
 
 ## ویژگی‌ها
 
 - ✅ نظارت بر تراکنش‌ها در زمان واقعی
 - ✅ محاسبه امتیاز ریسک خودکار
-- ✅ تولید هشدار برای تراکنش‌های مشکوک
+- ✅ تولید هشدار برای تراکنش‌های مشکوک همراه با **توضیح تصمیم (explainable AI)** — شکست قانون‌به‌قانون علت هر هشدار
+- ✅ ردیابی دستگاه (`Device`) برای شناسایی اشتراک دستگاه بین چند حساب (fraud rings)
+- ✅ ردیابی فروشنده (`Merchant`) برای تشخیص نرخ chargeback/refund غیرعادی و الگوی خرید-برگشت جعلی
+- ✅ تشخیص ریسک نکول در BNPL (Buy Now Pay Later)
 - ✅ مدیریت هشدارها و workflow بررسی
 - ✅ تولید گزارش‌های رگولاتوری (SAR, CTR)
 - ✅ لاگ‌گیری کامل برای audit trail
@@ -24,7 +27,7 @@
 1. کلون کردن پروژه:
 ```bash
 git clone <repository-url>
-cd Regalion
+cd Didebaan
 ```
 
 2. ایجاد محیط مجازی:
@@ -78,7 +81,7 @@ DJANGO_ENV=production python manage.py runserver
 ## ساختار پروژه
 
 ```
-Regalion/
+Didebaan/
 ├── backend/
 │   ├── aml/                    # Django app اصلی AML
 │   │   ├── models.py           # Customer, Transaction, Alert, RiskScore
@@ -170,6 +173,15 @@ Create a user first via Django Admin or `python manage.py createsuperuser`. Toke
 ### Audit Log (compliance)
 - `GET /api/audit-log/` - لیست خواندنی و صفحه‌بندی‌شده رویدادهای audit (فقط خواندن)
 
+### Devices (شناسایی حلقه‌های تقلب)
+- `GET /api/devices/` - لیست دستگاه‌ها
+- `GET /api/devices/{device_id}/` - جزئیات دستگاه
+- `GET /api/devices/{device_id}/customers/` - مشتریان مشترک روی این دستگاه (device sharing / fraud rings)
+
+### Merchants (سوءاستفاده فروشندگان)
+- `GET /api/merchants/` - لیست فروشندگان
+- `GET /api/merchants/{merchant_id}/` - جزئیات فروشنده (نرخ chargeback/refund، امتیاز ریسک)
+
 ## تست
 
 ```bash
@@ -179,9 +191,11 @@ python manage.py test
 ## ماژول‌های اصلی
 
 ### Rule Engine (`aml/rules/aml_rules.py`)
-- ارزیابی قوانین AML بر اساس تراکنش‌ها
+- ارزیابی قوانین AML و تقلب بر اساس تراکنش‌ها
 - پشتیبانی از قوانین: Threshold, Pattern, Behavioral, Geographic
+- قوانین تقلب: Device Sharing (اشتراک دستگاه بین چند حساب)، Merchant Abuse (سوءاستفاده فروشنده)، BNPL Risk (ریسک نکول BNPL)
 - قوانین قابل تنظیم از طریق دیتابیس
+- هر هشدار همراه با `explanation` — شکست قانون‌به‌قانون علت تصمیم (explainable AI)
 
 ### Risk Scorer (`aml/services/risk_scorer.py`)
 - محاسبه امتیاز ریسک برای مشتریان و تراکنش‌ها

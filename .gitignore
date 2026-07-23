@@ -1,4 +1,4 @@
-# Regalion AML - Git ignore
+# Didebaan Fraud & Abuse Intelligence Engine - Git ignore
 # Python
 __pycache__/
 *.py[cod]

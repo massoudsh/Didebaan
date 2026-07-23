@@ -13,11 +13,12 @@ from django.db.models import Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import render
 
-from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, AuditLog
+from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, AuditLog, Device, Merchant
 from .serializers import (
     CustomerSerializer, TransactionSerializer, AlertSerializer,
     RiskScoreSerializer, RuleSerializer, ReportSerializer, AuditLogSerializer,
-    MonitorTransactionSerializer, ReviewAlertSerializer, GenerateReportSerializer
+    MonitorTransactionSerializer, ReviewAlertSerializer, GenerateReportSerializer,
+    DeviceSerializer, MerchantSerializer
 )
 from .services.transaction_monitor import get_transaction_monitor
 from .services.alert_generator import get_alert_generator
@@ -28,7 +29,7 @@ logger = logging.getLogger('aml')
 
 def dashboard_view(request):
     """
-    Root UI: Regalion AML dashboard (counts + charts).
+    Root UI: Didebaan Fraud & Abuse Intelligence dashboard (counts + charts).
     Issues #18, #19: Dashboard view with alerts overview and risk distribution.
     """
     import json
@@ -398,6 +399,40 @@ class AlertViewSet(viewsets.ModelViewSet):
             return response
 
 
+class DeviceViewSet(viewsets.ModelViewSet):
+    """ViewSet for Device model (fraud/abuse device fingerprinting)"""
+    queryset = Device.objects.all()
+    serializer_class = DeviceSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'device_id'
+    filterset_fields = ['device_type', 'is_emulator', 'is_rooted']
+    search_fields = ['device_id', 'fingerprint_hash', 'ip_address']
+    ordering_fields = ['first_seen_at', 'last_seen_at']
+    ordering = ['-last_seen_at']
+
+    @action(detail=True, methods=['get'])
+    def customers(self, request, device_id=None):
+        """Distinct customers that have transacted with this device (ring detection)."""
+        device = self.get_object()
+        customer_ids = Transaction.objects.filter(device=device).values_list(
+            'customer_id', flat=True
+        ).distinct()
+        customers = Customer.objects.filter(id__in=customer_ids)
+        return Response(CustomerSerializer(customers, many=True).data)
+
+
+class MerchantViewSet(viewsets.ModelViewSet):
+    """ViewSet for Merchant model (fraud/abuse merchant risk)"""
+    queryset = Merchant.objects.all()
+    serializer_class = MerchantSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'merchant_id'
+    filterset_fields = ['category', 'is_active']
+    search_fields = ['merchant_id', 'name']
+    ordering_fields = ['risk_score', 'chargeback_rate', 'refund_rate', 'created_at']
+    ordering = ['-risk_score']
+
+
 class RiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for RiskScore model (read-only)"""
     queryset = RiskScore.objects.all()
@@ -626,7 +661,7 @@ class HealthView(APIView):
     throttle_classes = []  # No rate limit for load balancers
 
     def get(self, request):
-        return Response({'status': 'ok', 'service': 'regalion-aml'})
+        return Response({'status': 'ok', 'service': 'didebaan'})
 
 
 class ReadyView(APIView):

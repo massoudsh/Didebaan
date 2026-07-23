@@ -3,14 +3,14 @@ Django Admin configuration for AML models.
 Custom AdminSite with dashboard (counts, recent alerts); filters, actions, list display.
 """
 from django.contrib import admin
-from .models import Customer, Transaction, Alert, RiskScore, Rule, Report
+from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, Device, Merchant
 
 
 # --- Custom AdminSite with dashboard (counts + recent alerts) ---
 
 class AMLAdminSite(admin.AdminSite):
-    site_header = 'Regalion AML — سامانه مبارزه با پول‌شویی'
-    site_title = 'Regalion AML'
+    site_header = 'Didebaan — موتور هوشمند تشخیص تقلب و سوءاستفاده'
+    site_title = 'Didebaan'
     index_title = 'نمای کلی سامانه'
 
     index_template = 'admin/aml_index.html'
@@ -227,3 +227,27 @@ aml_admin_site.register(ThresholdConfig, ThresholdConfigAdmin)
 aml_admin_site.register(RuleVersion, RuleVersionAdmin)
 aml_admin_site.register(ReportComment, ReportCommentAdmin)
 aml_admin_site.register(Notification, NotificationAdmin)
+
+
+# ─── Fraud & Abuse Intelligence models (Didebaan pivot) ──────────────────────
+
+class DeviceAdmin(admin.ModelAdmin):
+    list_display = ('device_id', 'device_type', 'os', 'browser', 'is_emulator', 'is_rooted', 'last_seen_at')
+    list_filter = ('device_type', 'is_emulator', 'is_rooted')
+    search_fields = ('device_id', 'fingerprint_hash', 'ip_address')
+    readonly_fields = ('first_seen_at', 'last_seen_at')
+    ordering = ('-last_seen_at',)
+    list_per_page = 25
+
+
+class MerchantAdmin(admin.ModelAdmin):
+    list_display = ('merchant_id', 'name', 'category', 'risk_score', 'chargeback_rate', 'refund_rate', 'is_active')
+    list_filter = ('category', 'is_active')
+    search_fields = ('merchant_id', 'name')
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-risk_score',)
+    list_per_page = 25
+
+
+aml_admin_site.register(Device, DeviceAdmin)
+aml_admin_site.register(Merchant, MerchantAdmin)

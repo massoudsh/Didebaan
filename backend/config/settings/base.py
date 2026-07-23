@@ -1,5 +1,5 @@
 """
-Django base settings for Regalion AML System.
+Django base settings for Didebaan Fraud & Abuse Intelligence Engine.
 Shared across development and production. Do not put secrets here.
 """
 from pathlib import Path
@@ -61,7 +61,7 @@ if USE_POSTGRES:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='regalion_aml'),
+            'NAME': config('DB_NAME', default='didebaan_aml'),
             'USER': config('DB_USER', default='postgres'),
             'PASSWORD': config('DB_PASSWORD', default='postgres'),
             'HOST': config('DB_HOST', default='localhost'),
@@ -144,20 +144,23 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Regalion AML API',
+    'TITLE': 'Didebaan API — موتور هوشمند تشخیص تقلب و سوءاستفاده',
     'DESCRIPTION': (
-        'سیستم مبارزه با پول‌شویی — تطبیق‌یافته با بازار ایران\n\n'
-        'API برای مدیریت مشتریان، تراکنش‌ها، هشدارها، قوانین و گزارش‌های SAR/CTR.'
+        'AI Fraud & Abuse Intelligence Engine for Iranian Fintechs\n\n'
+        'API برای مدیریت مشتریان، تراکنش‌ها، دستگاه‌ها، مرچنت‌ها، هشدارهای قابل‌تفسیر '
+        '(explainable)، قوانین تشخیص تقلب/سوءاستفاده و AML، و گزارش‌های SAR/CTR.'
     ),
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'CONTACT': {'name': 'Regalion AML', 'email': 'aml@regalion.ir'},
+    'CONTACT': {'name': 'Didebaan', 'email': 'hello@didebaan.ai'},
     'LICENSE': {'name': 'Proprietary'},
     'TAGS': [
         {'name': 'customers', 'description': 'مدیریت مشتریان (KYC)'},
         {'name': 'transactions', 'description': 'نظارت بر تراکنش‌ها'},
-        {'name': 'alerts', 'description': 'هشدارهای مشکوک'},
-        {'name': 'rules', 'description': 'قوانین AML'},
+        {'name': 'devices', 'description': 'دستگاه‌ها — fingerprint و تشخیص حلقه حساب'},
+        {'name': 'merchants', 'description': 'مرچنت‌ها — ریسک چارجبک و سوءاستفاده'},
+        {'name': 'alerts', 'description': 'هشدارهای مشکوک (explainable)'},
+        {'name': 'rules', 'description': 'قوانین Fraud/Abuse و AML'},
         {'name': 'reports', 'description': 'گزارش‌های SAR/CTR'},
         {'name': 'audit-log', 'description': 'گزارش حسابرسی (audit trail)'},
         {'name': 'health', 'description': 'وضعیت سرویس'},

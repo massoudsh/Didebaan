@@ -1,6 +1,6 @@
-# Regalion AML — Dockerfile
+# Didebaan AML — Dockerfile
 # Issue #37: Containerized deployment for app, DB, Redis
-# Usage:  docker build -t regalion-aml .
+# Usage:  docker build -t didebaan-aml .
 #         docker-compose up
 
 FROM python:3.11-slim

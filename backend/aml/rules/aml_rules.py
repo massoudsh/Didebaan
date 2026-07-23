@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.db.models import Sum, Count, Q, Avg
 from django.db.models.functions import TruncDay
 
-from aml.models import Rule, Transaction, Customer
+from aml.models import Rule, Transaction, Customer, Device, Merchant
 
 logger = logging.getLogger('aml')
 
@@ -336,6 +336,12 @@ class ExtendedRuleEngine(RuleEngine):
             return self._evaluate_round_amount_rule(rule, transaction, rule.configuration)
         elif rule.rule_type == 'NEW_ACCOUNT':
             return self._evaluate_new_account_velocity_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'DEVICE_SHARING':
+            return self._evaluate_device_sharing_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'MERCHANT_ABUSE':
+            return self._evaluate_merchant_abuse_rule(rule, transaction, rule.configuration)
+        elif rule.rule_type == 'BNPL_RISK':
+            return self._evaluate_bnpl_risk_rule(rule, transaction, rule.configuration)
         return super()._evaluate_rule(rule, transaction)
 
     # ── Issue #23: PEP Rule ──────────────────────────────────────────────────
@@ -650,6 +656,143 @@ class ExtendedRuleEngine(RuleEngine):
                 f"مجموع امروز {today_amount:,.0f} ریال (حداکثر مجاز: {max_daily_amount:,.0f})"
             )
             risk_score = max(risk_score, min(100, int(float(today_amount / max_daily_amount) * 70)))
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Fraud Rule: Device Shared Across Accounts ────────────────────────────
+    def _evaluate_device_sharing_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Detect a single device (fingerprint) transacting for an unusual number of
+        distinct customers within a lookback window — a classic account-ring /
+        farmed-account signal (fake accounts, referral abuse, credential stuffing).
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        device = transaction.device
+        if device is None:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        lookback_days = config.get('lookback_days', 30)
+        max_distinct_customers = config.get('max_distinct_customers', 3)
+        lookback = timezone.now() - timedelta(days=lookback_days)
+
+        distinct_customers = Transaction.objects.filter(
+            device=device,
+            transaction_date__gte=lookback,
+        ).values('customer').distinct().count()
+
+        if distinct_customers >= max_distinct_customers:
+            triggered = True
+            reason = (
+                f"دستگاه {device.device_id} در {lookback_days} روز اخیر برای "
+                f"{distinct_customers} حساب متفاوت استفاده شده (آستانه: {max_distinct_customers})"
+            )
+            risk_score = min(100, 40 + distinct_customers * 12)
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Fraud Rule: Merchant Fake-purchase / Chargeback Abuse ────────────────
+    def _evaluate_merchant_abuse_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Flag transactions at merchants whose historical refund/chargeback rate
+        exceeds normal bounds, or that show a sudden volume spike — indicators
+        of fake-purchase loops or merchant-side collusion.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        merchant = transaction.merchant
+        if merchant is None:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        chargeback_threshold = Decimal(str(config.get('chargeback_rate_threshold', 5.0)))
+        refund_threshold = Decimal(str(config.get('refund_rate_threshold', 15.0)))
+
+        if merchant.chargeback_rate >= chargeback_threshold:
+            triggered = True
+            reason = (
+                f"مرچنت {merchant.name} نرخ چارجبک {merchant.chargeback_rate}% دارد "
+                f"(آستانه: {chargeback_threshold}%)"
+            )
+            risk_score = min(100, int(float(merchant.chargeback_rate / chargeback_threshold) * 60))
+
+        if merchant.refund_rate >= refund_threshold:
+            triggered = True
+            reason = (reason + ' | ' if reason else '') + (
+                f"مرچنت {merchant.name} نرخ بازگشت وجه {merchant.refund_rate}% دارد "
+                f"(آستانه: {refund_threshold}%)"
+            )
+            risk_score = max(risk_score, min(100, int(float(merchant.refund_rate / refund_threshold) * 50)))
+
+        # Sudden volume spike: today's transaction count vs. 30-day daily average
+        lookback_days = config.get('volume_lookback_days', 30)
+        spike_multiplier = config.get('volume_spike_multiplier', 3.0)
+        lookback = timezone.now() - timedelta(days=lookback_days)
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        historical_count = Transaction.objects.filter(
+            merchant=merchant, transaction_date__gte=lookback, transaction_date__lt=today_start,
+        ).count()
+        today_count = Transaction.objects.filter(
+            merchant=merchant, transaction_date__gte=today_start,
+        ).count() + 1
+
+        avg_daily = historical_count / max(lookback_days, 1)
+        if avg_daily > 0 and today_count >= avg_daily * spike_multiplier and today_count >= 5:
+            triggered = True
+            reason = (reason + ' | ' if reason else '') + (
+                f"جهش حجم تراکنش مرچنت {merchant.name}: امروز {today_count} در برابر "
+                f"میانگین روزانه {avg_daily:.1f}"
+            )
+            risk_score = max(risk_score, 70)
+
+        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+
+    # ── Fraud Rule: BNPL Default Risk Pattern ────────────────────────────────
+    def _evaluate_bnpl_risk_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
+        """
+        Flag BNPL (buy-now-pay-later) purchase patterns that historically precede
+        default: many open BNPL purchases with few/no repayments, or a new
+        customer taking a large BNPL exposure right away.
+        """
+        triggered = False
+        reason = ""
+        risk_score = 0
+
+        if transaction.transaction_type != 'BNPL_PURCHASE':
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+
+        customer = transaction.customer
+        lookback_days = config.get('lookback_days', 90)
+        max_open_purchases = config.get('max_open_purchases', 3)
+        min_repayment_ratio = config.get('min_repayment_ratio', 0.3)
+
+        lookback = timezone.now() - timedelta(days=lookback_days)
+        purchases = Transaction.objects.filter(
+            customer=customer, transaction_type='BNPL_PURCHASE',
+            transaction_date__gte=lookback,
+        )
+        purchase_count = purchases.count() + 1
+        purchase_total = (purchases.aggregate(total=Sum('amount'))['total'] or Decimal('0')) + transaction.amount
+
+        repayments = Transaction.objects.filter(
+            customer=customer, transaction_type='BNPL_REPAYMENT',
+            transaction_date__gte=lookback,
+        )
+        repayment_total = repayments.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        if purchase_count > max_open_purchases:
+            repayment_ratio = float(repayment_total / purchase_total) if purchase_total > 0 else 0
+            if repayment_ratio < min_repayment_ratio:
+                triggered = True
+                reason = (
+                    f"ریسک نکول BNPL: {purchase_count} خرید اعتباری در {lookback_days} روز "
+                    f"با نسبت بازپرداخت {repayment_ratio:.0%} (حداقل مجاز: {min_repayment_ratio:.0%})"
+                )
+                risk_score = min(100, 50 + (purchase_count - max_open_purchases) * 10)
 
         return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
 

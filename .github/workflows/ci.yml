@@ -1,4 +1,4 @@
-# Regalion AML — CI Pipeline
+# Didebaan AML — CI Pipeline
 # Issue #38: test, lint, migrate-check on every push/PR
 # Runs on: push to main/develop, pull_request to main
 
@@ -19,8 +19,8 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_DB: regalion_aml_test
-          POSTGRES_USER: regalion
+          POSTGRES_DB: didebaan_aml_test
+          POSTGRES_USER: didebaan
           POSTGRES_PASSWORD: testpass
         ports:
           - 5432:5432
@@ -34,8 +34,8 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings.development
       SECRET_KEY: ci-test-secret-key-not-for-production
       USE_POSTGRES: "true"
-      DB_NAME: regalion_aml_test
-      DB_USER: regalion
+      DB_NAME: didebaan_aml_test
+      DB_USER: didebaan
       DB_PASSWORD: testpass
       DB_HOST: localhost
       DB_PORT: "5432"

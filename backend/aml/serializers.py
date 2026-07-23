@@ -2,7 +2,7 @@
 DRF Serializers for AML models
 """
 from rest_framework import serializers
-from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, AuditLog
+from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, AuditLog, Device, Merchant
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -19,21 +19,50 @@ class CustomerSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
+class DeviceSerializer(serializers.ModelSerializer):
+    """Serializer for Device model (fraud/abuse device fingerprinting)"""
+
+    class Meta:
+        model = Device
+        fields = [
+            'id', 'device_id', 'fingerprint_hash', 'device_type', 'os',
+            'browser', 'ip_address', 'is_emulator', 'is_rooted',
+            'first_seen_at', 'last_seen_at'
+        ]
+        read_only_fields = ['id', 'first_seen_at', 'last_seen_at']
+
+
+class MerchantSerializer(serializers.ModelSerializer):
+    """Serializer for Merchant model (fraud/abuse merchant risk)"""
+
+    class Meta:
+        model = Merchant
+        fields = [
+            'id', 'merchant_id', 'name', 'category', 'risk_score',
+            'chargeback_rate', 'refund_rate', 'is_active',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
 class TransactionSerializer(serializers.ModelSerializer):
     """Serializer for Transaction model"""
     customer_detail = CustomerSerializer(source='customer', read_only=True)
-    
+    device_detail = DeviceSerializer(source='device', read_only=True)
+    merchant_detail = MerchantSerializer(source='merchant', read_only=True)
+
     class Meta:
         model = Transaction
         fields = [
             'id', 'transaction_id', 'customer', 'customer_detail',
             'transaction_type', 'amount', 'currency', 'status',
             'sender_account', 'receiver_account', 'receiver_name',
-            'receiver_country', 'description', 'transaction_date',
+            'receiver_country', 'device', 'device_detail', 'merchant',
+            'merchant_detail', 'description', 'transaction_date',
             'risk_score', 'is_suspicious', 'flagged_reasons',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'risk_score', 'is_suspicious', 
+        read_only_fields = ['id', 'risk_score', 'is_suspicious',
                            'flagged_reasons', 'created_at', 'updated_at']
 
 
@@ -62,7 +91,7 @@ class AlertSerializer(serializers.ModelSerializer):
             'id', 'alert_id', 'transaction', 'transaction_detail',
             'customer', 'customer_detail', 'severity', 'status',
             'title', 'description', 'triggered_rules', 'triggered_rules_detail',
-            'risk_score', 'reviewed_by', 'reviewed_at', 'review_notes',
+            'risk_score', 'explanation', 'reviewed_by', 'reviewed_at', 'review_notes',
             'resolution_notes', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'alert_id', 'created_at', 'updated_at']

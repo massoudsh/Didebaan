@@ -296,3 +296,69 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Created rule: {rule14.name}'))
 
         self.stdout.write(self.style.SUCCESS('Iranian market rules created successfully.'))
+        self._create_fraud_rules()
+
+    def _create_fraud_rules(self):
+        """
+        Create Didebaan Fraud & Abuse Intelligence rules: device sharing,
+        merchant abuse, and BNPL default risk.
+        """
+
+        # Rule 15: Device Shared Across Accounts
+        rule15, created = Rule.objects.get_or_create(
+            name='Device Shared Across Accounts',
+            defaults={
+                'description': 'تشخیص استفاده از یک دستگاه برای چند حساب متفاوت — نشانه حلقه حساب‌های جعلی',
+                'rule_type': 'DEVICE_SHARING',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'lookback_days': 30,
+                    'max_distinct_customers': 3,
+                },
+                'priority': 2,
+                'risk_weight': 2.0,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule15.name}'))
+
+        # Rule 16: Merchant Fake-purchase / Chargeback Abuse
+        rule16, created = Rule.objects.get_or_create(
+            name='Merchant Fake-purchase Abuse',
+            defaults={
+                'description': 'تشخیص مرچنت‌های با نرخ بالای چارجبک/بازگشت وجه یا جهش ناگهانی حجم تراکنش',
+                'rule_type': 'MERCHANT_ABUSE',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'chargeback_rate_threshold': 5.0,
+                    'refund_rate_threshold': 15.0,
+                    'volume_lookback_days': 30,
+                    'volume_spike_multiplier': 3.0,
+                },
+                'priority': 2,
+                'risk_weight': 1.8,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule16.name}'))
+
+        # Rule 17: BNPL Default Risk Pattern
+        rule17, created = Rule.objects.get_or_create(
+            name='BNPL Default Risk Pattern',
+            defaults={
+                'description': 'تشخیص الگوی ریسک نکول در خریدهای اعتباری (BNPL) — خرید زیاد، بازپرداخت کم',
+                'rule_type': 'BNPL_RISK',
+                'status': 'ACTIVE',
+                'configuration': {
+                    'lookback_days': 90,
+                    'max_open_purchases': 3,
+                    'min_repayment_ratio': 0.3,
+                },
+                'priority': 1,
+                'risk_weight': 2.2,
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created rule: {rule17.name}'))
+
+        self.stdout.write(self.style.SUCCESS('Didebaan fraud & abuse rules created successfully.'))

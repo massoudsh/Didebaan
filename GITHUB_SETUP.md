@@ -1,11 +1,11 @@
-# Creating Regalion as a New GitHub Repository
+# Creating Didebaan as a New GitHub Repository
 
 This project is structured as a **standalone repository** ready to be pushed to GitHub.
 
 ## Project structure (what gets committed)
 
 ```
-Regalion/
+Didebaan/
 ├── .env.example          # Template for environment variables (copy to .env locally)
 ├── .gitignore             # Ignores venv, logs, .env, db, cache, etc.
 ├── README.md              # Project documentation
@@ -22,16 +22,16 @@ Regalion/
 
 ---
 
-## Step 1: Initialize Git in Regalion (if not already)
+## Step 1: Initialize Git in Didebaan (if not already)
 
-From your machine, in the Regalion folder:
+From your machine, in the Didebaan folder:
 
 ```bash
-cd /Users/massoudshemirani/MyProjects/Regalion
+cd /Users/massoudshemirani/MyProjects/Didebaan
 git init
 git add .
 git status   # Review: venv, .env, logs should be ignored
-git commit -m "Initial commit: Regalion AML system (Django + DRF)"
+git commit -m "Initial commit: Didebaan AML system (Django + DRF)"
 ```
 
 ---
@@ -39,7 +39,7 @@ git commit -m "Initial commit: Regalion AML system (Django + DRF)"
 ## Step 2: Create a new repository on GitHub
 
 1. Go to [GitHub](https://github.com) → **New repository**.
-2. **Repository name:** e.g. `Regalion` or `regalion-aml`.
+2. **Repository name:** e.g. `Didebaan` or `didebaan-aml`.
 3. **Description:** e.g. `AML (Anti-Money Laundering) system – transaction monitoring, risk scoring, alerts, regulatory reports (RegMeet challenge).`
 4. Choose **Public** (or Private).
 5. **Do not** add a README, .gitignore, or license here (they already exist in your project).
@@ -52,7 +52,7 @@ git commit -m "Initial commit: Regalion AML system (Django + DRF)"
 GitHub will show commands; use these (replace `YOUR_USERNAME` and `REPO_NAME` with your values):
 
 ```bash
-cd /Users/massoudshemirani/MyProjects/Regalion
+cd /Users/massoudshemirani/MyProjects/Didebaan
 git remote add origin https://github.com/YOUR_USERNAME/REPO_NAME.git
 git branch -M main
 git push -u origin main
@@ -81,7 +81,7 @@ If you want a license file:
 
 | Action              | Location / command                          |
 |---------------------|---------------------------------------------|
-| Git repo            | Initialized inside `Regalion/` (this folder) |
+| Git repo            | Initialized inside `Didebaan/` (this folder) |
 | Ignore venv/logs/env| `.gitignore`                                |
 | Env template        | `.env.example` → copy to `.env` locally     |
 | Create repo         | GitHub → New repository                     |

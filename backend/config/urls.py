@@ -1,5 +1,5 @@
 """
-URL configuration for Regalion AML System.
+URL configuration for Didebaan Fraud & Abuse Intelligence Engine.
 Issue #4: API documentation via drf-spectacular (Swagger UI + ReDoc).
 """
 from django.urls import path, include

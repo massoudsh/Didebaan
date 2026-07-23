@@ -1,4 +1,4 @@
-# Regalion AML — Development Roadmap
+# Didebaan AML — Development Roadmap
 
 Timeline and priorities for development, UI/UX, and enhancements. Use this with GitHub Issues and Milestones for tracking.
 

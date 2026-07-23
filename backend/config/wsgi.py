@@ -1,5 +1,5 @@
 """
-WSGI config for Regalion AML System.
+WSGI config for Didebaan AML System.
 """
 
 import os

@@ -47,7 +47,7 @@ def notify_alert(alert) -> None:
     if not _severity_meets_threshold(alert.severity, NOTIFY_SEVERITY_THRESHOLD):
         return
 
-    subject = f"[Regalion AML] هشدار {alert.severity}: {alert.alert_id}"
+    subject = f"[Didebaan AML] هشدار {alert.severity}: {alert.alert_id}"
     message = (
         f"هشدار جدید ثبت شد.\n\n"
         f"شناسه هشدار: {alert.alert_id}\n"
@@ -90,7 +90,7 @@ def _send_email(notification) -> None:
         send_mail(
             subject=notification.subject,
             message=notification.message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@regalion-aml.ir'),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@didebaan-aml.ir'),
             recipient_list=[notification.recipient],
             fail_silently=False,
         )
@@ -115,13 +115,13 @@ def _send_webhook(notification) -> None:
             'risk_score': float(notification.related_alert.risk_score) if notification.related_alert else None,
             'customer_id': str(notification.related_alert.customer.customer_id) if notification.related_alert else None,
             'timestamp': timezone.now().isoformat(),
-            'system': 'Regalion AML',
+            'system': 'Didebaan AML',
         }
         data = json.dumps(payload).encode('utf-8')
         req = Request(
             notification.recipient,
             data=data,
-            headers={'Content-Type': 'application/json', 'User-Agent': 'Regalion-AML/1.0'},
+            headers={'Content-Type': 'application/json', 'User-Agent': 'Didebaan-AML/1.0'},
             method='POST',
         )
         with urlopen(req, timeout=10) as resp:

@@ -1,4 +1,4 @@
-# Regalion AML — Django best-practice run targets
+# Didebaan AML — Django best-practice run targets
 # Usage: make run | make migrate | make test | make prod-run
 
 PYTHON ?= python3
@@ -9,7 +9,7 @@ VENV_BIN = $(VENV)/bin
 .PHONY: help venv install migrate run run-prod test shell createsuperuser collectstatic create-sample-rules
 
 help:
-	@echo "Regalion AML — targets: venv, install, migrate, run, run-prod, test, shell, createsuperuser, collectstatic, create-sample-rules"
+	@echo "Didebaan AML — targets: venv, install, migrate, run, run-prod, test, shell, createsuperuser, collectstatic, create-sample-rules"
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -47,7 +47,7 @@ check:
 
 # Docker targets (Issue #37)
 docker-build:
-	docker build -t regalion-aml .
+	docker build -t didebaan-aml .
 
 docker-up:
 	docker-compose up -d

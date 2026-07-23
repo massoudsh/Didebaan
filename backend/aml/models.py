@@ -48,11 +48,14 @@ class Customer(models.Model):
     current_risk_level = models.CharField(max_length=20, choices=RISK_LEVELS, default='MEDIUM')
     risk_score = models.DecimalField(max_digits=5, decimal_places=2, default=50.0,
                                      validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
+
+    # Politically Exposed Person flag (Issue #23)
+    is_pep = models.BooleanField(default=False, verbose_name='شخص در معرض خطر سیاسی (PEP)')
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         ordering = ['-created_at']
         indexes = [
@@ -60,9 +63,71 @@ class Customer(models.Model):
             models.Index(fields=['email']),
             models.Index(fields=['current_risk_level']),
         ]
-    
+
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.customer_id})"
+
+
+class Device(models.Model):
+    """
+    Device fingerprint seen across the platform (fraud/abuse detection).
+    A single device shared across many accounts is a strong ring-fraud signal.
+    """
+    device_id = models.CharField(max_length=200, unique=True, db_index=True, verbose_name='شناسه دستگاه')
+    fingerprint_hash = models.CharField(max_length=200, blank=True, db_index=True, verbose_name='هش fingerprint')
+    device_type = models.CharField(max_length=50, blank=True, verbose_name='نوع دستگاه')
+    os = models.CharField(max_length=100, blank=True, verbose_name='سیستم‌عامل')
+    browser = models.CharField(max_length=100, blank=True, verbose_name='مرورگر')
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
+    is_emulator = models.BooleanField(default=False, verbose_name='شبیه‌ساز است')
+    is_rooted = models.BooleanField(default=False, verbose_name='روت/جیل‌بریک')
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-last_seen_at']
+        verbose_name = 'دستگاه'
+        verbose_name_plural = 'دستگاه‌ها'
+
+    def __str__(self):
+        return self.device_id
+
+
+class Merchant(models.Model):
+    """
+    Merchant/business receiving payments. Tracked for abuse patterns:
+    fake-purchase loops, excessive refunds/chargebacks, sudden volume spikes.
+    """
+    MERCHANT_CATEGORIES = [
+        ('RETAIL', 'خرده‌فروشی'),
+        ('DIGITAL_GOODS', 'کالای دیجیتال'),
+        ('MARKETPLACE', 'مارکت‌پلیس'),
+        ('BNPL_PARTNER', 'همکار BNPL'),
+        ('SERVICES', 'خدمات'),
+        ('OTHER', 'سایر'),
+    ]
+
+    merchant_id = models.CharField(max_length=100, unique=True, db_index=True, verbose_name='شناسه مرچنت')
+    name = models.CharField(max_length=200, verbose_name='نام')
+    category = models.CharField(max_length=30, choices=MERCHANT_CATEGORIES, default='OTHER', verbose_name='دسته‌بندی')
+    risk_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0,
+                                      validators=[MinValueValidator(0), MaxValueValidator(100)],
+                                      verbose_name='امتیاز ریسک')
+    chargeback_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.0,
+                                           verbose_name='نرخ چارجبک (%)')
+    refund_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.0,
+                                       verbose_name='نرخ بازگشت وجه (%)')
+    is_active = models.BooleanField(default=True, verbose_name='فعال')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-risk_score']
+        verbose_name = 'مرچنت'
+        verbose_name_plural = 'مرچنت‌ها'
+
+    def __str__(self):
+        return f"{self.name} ({self.merchant_id})"
 
 
 class Transaction(models.Model):
@@ -75,6 +140,8 @@ class Transaction(models.Model):
         ('TRANSFER', 'Transfer'),
         ('PAYMENT', 'Payment'),
         ('REFUND', 'Refund'),
+        ('BNPL_PURCHASE', 'خرید اعتباری (BNPL)'),
+        ('BNPL_REPAYMENT', 'بازپرداخت BNPL'),
     ]
     
     STATUS_CHOICES = [
@@ -99,7 +166,13 @@ class Transaction(models.Model):
     receiver_account = models.CharField(max_length=100, blank=True)
     receiver_name = models.CharField(max_length=200, blank=True)
     receiver_country = models.CharField(max_length=100, blank=True)
-    
+
+    # Fraud/Abuse context (device, merchant graph)
+    device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='transactions', verbose_name='دستگاه')
+    merchant = models.ForeignKey(Merchant, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='transactions', verbose_name='مرچنت')
+
     # Metadata
     description = models.TextField(blank=True)
     transaction_date = models.DateTimeField(default=timezone.now, db_index=True)
@@ -142,6 +215,10 @@ class Rule(models.Model):
         ('NIGHT_WEEKEND', 'Night/Weekend Activity'),
         ('ROUND_AMOUNT', 'Round-amount / Structuring Pattern'),
         ('NEW_ACCOUNT', 'New-account Velocity (30/90 days)'),
+        # Fraud & Abuse Intelligence rules (Didebaan pivot)
+        ('DEVICE_SHARING', 'Device Shared Across Accounts'),
+        ('MERCHANT_ABUSE', 'Merchant Fake-purchase / Chargeback Abuse'),
+        ('BNPL_RISK', 'BNPL Default Risk Pattern'),
     ]
     
     STATUS_CHOICES = [
@@ -164,18 +241,21 @@ class Rule(models.Model):
     risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.0,
                                       validators=[MinValueValidator(0), MaxValueValidator(10)])
     
+    # Version tracking
+    version_number = models.PositiveIntegerField(default=1, verbose_name='شماره نسخه')
+
     # Metadata
     created_by = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_applied_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         ordering = ['priority', '-created_at']
         indexes = [
             models.Index(fields=['status', 'rule_type']),
         ]
-    
+
     def __str__(self):
         return f"{self.name} ({self.rule_type})"
 
@@ -214,7 +294,11 @@ class Alert(models.Model):
     triggered_rules = models.ManyToManyField(Rule, related_name='alerts', blank=True)
     risk_score = models.DecimalField(max_digits=5, decimal_places=2,
                                       validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
+
+    # Explainability: structured breakdown of why this alert fired
+    # e.g. [{"rule": "Device Sharing", "reason": "...", "contribution": 32.5}, ...]
+    explanation = models.JSONField(default=list, blank=True, verbose_name='توضیح تصمیم (explainable AI)')
+
     # Review Information
     reviewed_by = models.CharField(max_length=100, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)

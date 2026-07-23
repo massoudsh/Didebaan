@@ -19,35 +19,38 @@ class AlertGenerator:
     Service for generating and managing AML alerts
     """
     
-    def generate_alert(self, transaction: Transaction, 
+    def generate_alert(self, transaction: Transaction,
                       triggered_rules: List[Rule],
                       risk_score: Decimal,
                       severity: str,
                       reasons: List[str]) -> Alert:
         """
         Generate an alert for a suspicious transaction
-        
+
         Args:
             transaction: Transaction that triggered the alert
             triggered_rules: List of rules that were triggered
             risk_score: Risk score of the transaction
             severity: Alert severity level
             reasons: List of reasons why the alert was generated
-            
+
         Returns:
             Created Alert object
         """
         logger.info(f"Generating alert for transaction {transaction.transaction_id}")
-        
+
         # Generate unique alert ID
         alert_id = f"ALT-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-        
+
         # Create alert title
         title = self._generate_alert_title(transaction, triggered_rules, severity)
-        
+
         # Create alert description
         description = self._generate_alert_description(transaction, triggered_rules, reasons, risk_score)
-        
+
+        # Explainable AI: structured per-rule breakdown of why this alert fired
+        explanation = self._build_explanation(triggered_rules, reasons)
+
         # Create alert
         alert = Alert.objects.create(
             alert_id=alert_id,
@@ -57,7 +60,8 @@ class AlertGenerator:
             status='OPEN',
             title=title,
             description=description,
-            risk_score=risk_score
+            risk_score=risk_score,
+            explanation=explanation,
         )
         
         # Add triggered rules
@@ -68,7 +72,25 @@ class AlertGenerator:
         
         return alert
     
-    def _generate_alert_title(self, transaction: Transaction, 
+    def _build_explanation(self, triggered_rules: List[Rule], reasons: List[str]) -> List[Dict]:
+        """
+        Build an explainable-AI breakdown: one entry per triggered rule with
+        the rule type/name, the human-readable reason, and its weighted
+        contribution to the final risk score — so reviewers see *why*, not
+        just a bare severity number.
+        """
+        explanation = []
+        for i, rule in enumerate(triggered_rules):
+            reason = reasons[i] if i < len(reasons) else ''
+            explanation.append({
+                'rule_name': rule.name,
+                'rule_type': rule.rule_type,
+                'reason': reason,
+                'weight': float(rule.risk_weight),
+            })
+        return explanation
+
+    def _generate_alert_title(self, transaction: Transaction,
                              triggered_rules: List[Rule],
                              severity: str) -> str:
         """Generate alert title"""
