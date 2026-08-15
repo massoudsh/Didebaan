@@ -846,11 +846,11 @@ class BulkExportTest(TestCase):
         self.client.login(username='exporter', password='testpass123')
 
     def test_csv_export_returns_200(self):
-        r = self.client.get('/api/alerts/export/?format=csv')
+        r = self.client.get('/api/alerts/export/?export_format=csv')
         self.assertEqual(r.status_code, 200)
         self.assertIn('text/csv', r['Content-Type'])
 
     def test_xlsx_export_returns_200(self):
-        r = self.client.get('/api/alerts/export/?format=xlsx')
+        r = self.client.get('/api/alerts/export/?export_format=xlsx')
         self.assertEqual(r.status_code, 200)
         self.assertIn('spreadsheetml', r['Content-Type'])

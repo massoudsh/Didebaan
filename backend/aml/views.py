@@ -307,12 +307,17 @@ class AlertViewSet(viewsets.ModelViewSet):
         Issue #15: Bulk export alerts to CSV or Excel (xlsx).
 
         Query params:
-            format=csv  (default) — returns text/csv
-            format=xlsx           — returns Excel workbook
-            status=OPEN|...       — optional filter
-            severity=HIGH|...     — optional filter
+            export_format=csv  (default) — returns text/csv
+            export_format=xlsx           — returns Excel workbook
+            status=OPEN|...              — optional filter
+            severity=HIGH|...            — optional filter
+
+        Note: intentionally NOT named "format" — that query param is reserved
+        by DRF for content negotiation, which runs before this view's code
+        executes. Since only JSONRenderer is registered, ?format=csv/xlsx
+        would make DRF raise Http404 before reaching this method.
         """
-        export_format = request.query_params.get('format', 'csv').lower()
+        export_format = request.query_params.get('export_format', 'csv').lower()
         queryset = self.get_queryset()
 
         # Optional filters

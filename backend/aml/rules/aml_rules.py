@@ -22,14 +22,25 @@ class RuleEngine:
     """
     
     def __init__(self):
-        self.active_rules = None
         self._load_rules()
-    
+
     def _load_rules(self):
-        """Load active rules from database"""
-        self.active_rules = Rule.objects.filter(status='ACTIVE').order_by('priority')
-        logger.info(f"Loaded {self.active_rules.count()} active rules")
-    
+        """Log the currently active rule count (rules are always fetched fresh)."""
+        logger.info(f"Loaded {Rule.objects.filter(status='ACTIVE').count()} active rules")
+
+    @property
+    def active_rules(self):
+        """
+        Always fetch a fresh QuerySet from the database.
+
+        This engine is used as a process-wide singleton (see get_rule_engine()),
+        so caching the QuerySet on the instance would freeze it to whatever rules
+        existed the first time it was evaluated/iterated (querysets cache their
+        results after first evaluation) — new or updated rules would never be
+        picked up without an explicit reload_rules() call.
+        """
+        return Rule.objects.filter(status='ACTIVE').order_by('priority')
+
     def evaluate_transaction(self, transaction: Transaction) -> Tuple[List[Rule], List[str], Decimal]:
         """
         Evaluate a transaction against all active rules
