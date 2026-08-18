@@ -2,7 +2,7 @@
 DRF Serializers for AML models
 """
 from rest_framework import serializers
-from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, AuditLog, Device, Merchant
+from .models import Customer, Transaction, Alert, AlertComment, RiskScore, Rule, Report, AuditLog, Device, Merchant
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -92,9 +92,18 @@ class AlertSerializer(serializers.ModelSerializer):
             'customer', 'customer_detail', 'severity', 'status',
             'title', 'description', 'triggered_rules', 'triggered_rules_detail',
             'risk_score', 'explanation', 'reviewed_by', 'reviewed_at', 'review_notes',
-            'resolution_notes', 'created_at', 'updated_at'
+            'resolution_notes', 'assigned_to', 'assigned_at', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'alert_id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'alert_id', 'assigned_at', 'created_at', 'updated_at']
+
+
+class AlertCommentSerializer(serializers.ModelSerializer):
+    """Serializer for AlertComment — alert investigation/case history thread"""
+
+    class Meta:
+        model = AlertComment
+        fields = ['id', 'alert', 'comment_type', 'comment', 'author', 'created_at']
+        read_only_fields = ['id', 'alert', 'comment_type', 'author', 'created_at']
 
 
 class RiskScoreSerializer(serializers.ModelSerializer):
@@ -149,6 +158,12 @@ class ReviewAlertSerializer(serializers.Serializer):
         required=True
     )
     notes = serializers.CharField(required=True, allow_blank=True)
+
+
+class AssignAlertSerializer(serializers.Serializer):
+    """Serializer for alert assignment endpoint (Issue #39: case management)"""
+    assigned_to = serializers.CharField(required=True, allow_blank=True, max_length=100)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class GenerateReportSerializer(serializers.Serializer):

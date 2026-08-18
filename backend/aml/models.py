@@ -304,7 +304,11 @@ class Alert(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_notes = models.TextField(blank=True)
     resolution_notes = models.TextField(blank=True)
-    
+
+    # Case management: who is currently investigating this alert
+    assigned_to = models.CharField(max_length=100, blank=True, verbose_name='بررسی‌کننده')
+    assigned_at = models.DateTimeField(null=True, blank=True, verbose_name='زمان ارجاع')
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -590,6 +594,39 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.notification_type} → {self.recipient} ({self.status})"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #39: Alert case management (assignment + investigation comment thread)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AlertComment(models.Model):
+    """
+    Investigation thread for an Alert — comments, assignment changes, and
+    status changes logged as a running case history (same pattern as
+    ReportComment, but for the alert triage/investigation workflow).
+    """
+    COMMENT_TYPES = [
+        ('COMMENT', 'یادداشت'),
+        ('ASSIGNMENT', 'ارجاع به بررسی‌کننده'),
+        ('STATUS_CHANGE', 'تغییر وضعیت'),
+    ]
+
+    alert = models.ForeignKey(Alert, on_delete=models.CASCADE, related_name='comments',
+                              verbose_name='هشدار')
+    comment_type = models.CharField(max_length=20, choices=COMMENT_TYPES,
+                                    default='COMMENT', verbose_name='نوع')
+    comment = models.TextField(blank=True, verbose_name='متن یادداشت')
+    author = models.CharField(max_length=100, verbose_name='نویسنده')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'یادداشت هشدار'
+        verbose_name_plural = 'یادداشت‌های هشدار'
+
+    def __str__(self):
+        return f"{self.alert.alert_id} — {self.comment_type} by {self.author}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

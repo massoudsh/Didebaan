@@ -9,7 +9,7 @@ from typing import Dict, Optional, List
 from django.utils import timezone
 from django.db.models import Avg
 
-from aml.models import Alert, Transaction, Customer, Rule
+from aml.models import Alert, AlertComment, Transaction, Customer, Rule
 
 logger = logging.getLogger('aml')
 
@@ -150,18 +150,22 @@ class AlertGenerator:
         """
         logger.info(f"Reviewing alert {alert.alert_id} by {reviewer}")
         
+        previous_status = alert.status
+
         alert.status = status
         alert.reviewed_by = reviewer
         alert.reviewed_at = timezone.now()
         alert.review_notes = notes
-        
+
         if status == 'RESOLVED':
             alert.resolution_notes = notes
-        
+
         alert.save()
-        
+
+        self._log_status_change(alert, previous_status, status, reviewer, notes)
+
         logger.info(f"Alert {alert.alert_id} reviewed. Status: {status}")
-        
+
         return alert
     
     def escalate_alert(self, alert: Alert, reviewer: str, notes: str) -> Alert:
@@ -177,7 +181,9 @@ class AlertGenerator:
             Updated Alert object
         """
         logger.info(f"Escalating alert {alert.alert_id}")
-        
+
+        previous_status = alert.status
+
         # Increase severity if not already CRITICAL
         if alert.severity != 'CRITICAL':
             severity_map = {
@@ -186,15 +192,17 @@ class AlertGenerator:
                 'HIGH': 'CRITICAL'
             }
             alert.severity = severity_map.get(alert.severity, 'CRITICAL')
-        
+
         alert.status = 'ESCALATED'
         alert.reviewed_by = reviewer
         alert.reviewed_at = timezone.now()
         alert.review_notes = f"ESCALATED: {notes}"
         alert.save()
-        
+
+        self._log_status_change(alert, previous_status, 'ESCALATED', reviewer, notes)
+
         logger.info(f"Alert {alert.alert_id} escalated to {alert.severity}")
-        
+
         return alert
     
     def mark_false_positive(self, alert: Alert, reviewer: str, notes: str) -> Alert:
@@ -210,17 +218,86 @@ class AlertGenerator:
             Updated Alert object
         """
         logger.info(f"Marking alert {alert.alert_id} as false positive")
-        
+
+        previous_status = alert.status
+
         alert.status = 'FALSE_POSITIVE'
         alert.reviewed_by = reviewer
         alert.reviewed_at = timezone.now()
         alert.review_notes = notes
         alert.resolution_notes = f"False Positive: {notes}"
         alert.save()
-        
+
+        self._log_status_change(alert, previous_status, 'FALSE_POSITIVE', reviewer, notes)
+
         logger.info(f"Alert {alert.alert_id} marked as false positive")
-        
+
         return alert
+
+    def assign_alert(self, alert: Alert, assigned_to: str, assigned_by: str,
+                     notes: str = '') -> Alert:
+        """
+        Assign (or reassign/unassign) an alert to an investigator, and log
+        the change in the alert's case-history comment thread.
+
+        Args:
+            alert: Alert to assign
+            assigned_to: Username of the investigator (blank string to unassign)
+            assigned_by: Username of the person performing the assignment
+            notes: Optional context for the assignment
+
+        Returns:
+            Updated Alert object
+        """
+        previous_assignee = alert.assigned_to
+
+        alert.assigned_to = assigned_to
+        alert.assigned_at = timezone.now() if assigned_to else None
+        alert.save()
+
+        if assigned_to:
+            summary = f"ارجاع از «{previous_assignee or '—'}» به «{assigned_to}» توسط {assigned_by}"
+        else:
+            summary = f"لغو ارجاع (قبلاً به «{previous_assignee}») توسط {assigned_by}"
+        if notes:
+            summary += f"\n{notes}"
+
+        AlertComment.objects.create(
+            alert=alert,
+            comment_type='ASSIGNMENT',
+            comment=summary,
+            author=assigned_by,
+        )
+
+        logger.info(f"Alert {alert.alert_id} assigned to '{assigned_to}' by {assigned_by}")
+
+        return alert
+
+    def add_comment(self, alert: Alert, author: str, comment: str) -> AlertComment:
+        """
+        Add a free-form investigation note to an alert's case-history thread.
+        """
+        return AlertComment.objects.create(
+            alert=alert,
+            comment_type='COMMENT',
+            comment=comment,
+            author=author,
+        )
+
+    def _log_status_change(self, alert: Alert, previous_status: str,
+                           new_status: str, author: str, notes: str) -> None:
+        """Internal helper: log a STATUS_CHANGE entry in the alert's comment thread."""
+        if previous_status == new_status:
+            return
+        summary = f"وضعیت از «{previous_status}» به «{new_status}» تغییر کرد"
+        if notes:
+            summary += f"\n{notes}"
+        AlertComment.objects.create(
+            alert=alert,
+            comment_type='STATUS_CHANGE',
+            comment=summary,
+            author=author,
+        )
     
     def get_alerts_by_severity(self, severity: str, status: Optional[str] = None) -> List[Alert]:
         """

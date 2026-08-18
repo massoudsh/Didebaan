@@ -62,6 +62,17 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 - **Rules:** #22 PEP/high-risk customer, #23 Night/weekend activity, #24 Round-amount structuring, #25 Same-beneficiary concentration, #26 New-account velocity, #27 Sanctioned countries.
 - **Scenarios:** #28 Structuring E2E test, #29 Layering test.
 - **Features:** #30 Notifications, #31 Rule versioning, #32 Configurable thresholds, #33 SAR/CTR workflow, #34 ML risk model; #35 API examples docs, #36 High-risk countries sample; #37 Docker, #38 CI.
+- **#39 Alert case management (Done):** `Alert.assigned_to`/`assigned_at` + `AlertComment` case-history thread (COMMENT/ASSIGNMENT/STATUS_CHANGE). API: `POST /api/alerts/{alert_id}/assign/`, `GET|POST /api/alerts/{alert_id}/comments/`. `review`/`escalate`/`false_positive` now auto-log a STATUS_CHANGE comment.
+
+### Backlog — proposed future issues (not started)
+
+- **#40 Watchlist / sanctioned-entity model:** Replace the hardcoded sanctioned-country list in `aml_rules.py` with a `WatchlistEntry` model (country, entity name, national ID, source list) manageable via Admin/API, so compliance can update it without a deploy.
+- **#41 SLA & escalation timers for assigned alerts:** Track `assigned_at` age; a Celery beat task auto-escalates or notifies when an assigned alert has been open past a configurable SLA (e.g. `ThresholdConfig`).
+- **#42 Bulk alert actions:** `POST /api/alerts/bulk-assign/` and `bulk-review/` to act on a list of `alert_id`s at once (complements the existing bulk export).
+- **#43 Frontend dashboard (RTL/Persian):** Standalone React/Vue app consuming the existing REST API — alert queue with assignment/case-history UI, risk dashboards, RTL layout (Phase 3 items #17–#21, not yet built).
+- **#44 Structured (JSON) logging in production:** Replace default logging config with JSON formatter for log aggregators (Phase 5 item).
+- **#45 DB indexing/query-plan pass:** Review `Transaction`/`Alert`/`AuditLog` query patterns under load and add missing composite indexes (Phase 5 item).
+- **#46 Case reassignment audit report:** Export endpoint (CSV/XLSX) for `AlertComment` history, mirroring the existing alert export, for regulator/audit reviews.
 
 ---
 

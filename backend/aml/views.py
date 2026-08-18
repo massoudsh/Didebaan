@@ -13,12 +13,12 @@ from django.db.models import Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import render
 
-from .models import Customer, Transaction, Alert, RiskScore, Rule, Report, AuditLog, Device, Merchant
+from .models import Customer, Transaction, Alert, AlertComment, RiskScore, Rule, Report, AuditLog, Device, Merchant
 from .serializers import (
     CustomerSerializer, TransactionSerializer, AlertSerializer,
     RiskScoreSerializer, RuleSerializer, ReportSerializer, AuditLogSerializer,
     MonitorTransactionSerializer, ReviewAlertSerializer, GenerateReportSerializer,
-    DeviceSerializer, MerchantSerializer
+    DeviceSerializer, MerchantSerializer, AlertCommentSerializer, AssignAlertSerializer
 )
 from .services.transaction_monitor import get_transaction_monitor
 from .services.alert_generator import get_alert_generator
@@ -285,6 +285,52 @@ class AlertViewSet(viewsets.ModelViewSet):
             alert = alert_generator.review_alert(alert, reviewer, status_value, notes)
         
         return Response(AlertSerializer(alert).data)
+
+    @action(detail=True, methods=['post'], url_path='assign')
+    def assign_alert(self, request, alert_id=None):
+        """
+        Issue #39: Assign (or unassign, with assigned_to='') an alert to an
+        investigator for triage. Logs the change in the case-history thread.
+        """
+        alert = self.get_object()
+        serializer = AssignAlertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        alert_generator = get_alert_generator()
+        assigned_by = request.user.username if hasattr(request.user, 'username') else 'system'
+
+        alert = alert_generator.assign_alert(
+            alert,
+            assigned_to=serializer.validated_data['assigned_to'],
+            assigned_by=assigned_by,
+            notes=serializer.validated_data.get('notes', ''),
+        )
+
+        return Response(AlertSerializer(alert).data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='comments')
+    def comments(self, request, alert_id=None):
+        """
+        Issue #39: Case-history comment thread for an alert.
+        GET  → list all comments (COMMENT / ASSIGNMENT / STATUS_CHANGE).
+        POST → add a free-form investigation note ({"comment": "..."}).
+        """
+        alert = self.get_object()
+
+        if request.method == 'GET':
+            comments = alert.comments.all()
+            return Response(AlertCommentSerializer(comments, many=True).data)
+
+        comment_text = request.data.get('comment', '').strip()
+        if not comment_text:
+            return Response({'error': 'comment is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        author = request.user.username if hasattr(request.user, 'username') else 'system'
+        alert_generator = get_alert_generator()
+        comment = alert_generator.add_comment(alert, author=author, comment=comment_text)
+
+        return Response(AlertCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+
     
     @action(detail=False, methods=['get'])
     def statistics(self, request):

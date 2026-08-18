@@ -6,7 +6,7 @@ from django.test import TestCase, Client
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Customer, Transaction, Rule, Alert, RiskScore, Report
+from .models import Customer, Transaction, Rule, Alert, AlertComment, RiskScore, Report
 from .services.transaction_monitor import get_transaction_monitor
 from .services.risk_scorer import get_risk_scorer
 from .services.alert_generator import get_alert_generator
@@ -281,6 +281,73 @@ class AlertGeneratorTest(TestCase):
         self.assertEqual(reviewed_alert.status, 'RESOLVED')
         self.assertEqual(reviewed_alert.reviewed_by, 'test_user')
         self.assertIsNotNone(reviewed_alert.reviewed_at)
+
+    def test_alert_review_logs_status_change_comment(self):
+        """Issue #39: reviewing an alert should log a STATUS_CHANGE case-history comment"""
+        alert_generator = get_alert_generator()
+
+        alert = alert_generator.generate_alert(
+            transaction=self.transaction,
+            triggered_rules=[],
+            risk_score=Decimal('85'),
+            severity='HIGH',
+            reasons=['High transaction amount']
+        )
+
+        alert_generator.review_alert(
+            alert=alert,
+            reviewer='test_user',
+            status='RESOLVED',
+            notes='Confirmed legitimate'
+        )
+
+        comments = alert.comments.filter(comment_type='STATUS_CHANGE')
+        self.assertEqual(comments.count(), 1)
+        self.assertEqual(comments.first().author, 'test_user')
+
+    def test_alert_assignment(self):
+        """Issue #39: assigning an alert to an investigator, and unassigning"""
+        alert_generator = get_alert_generator()
+
+        alert = alert_generator.generate_alert(
+            transaction=self.transaction,
+            triggered_rules=[],
+            risk_score=Decimal('85'),
+            severity='HIGH',
+            reasons=['High transaction amount']
+        )
+
+        alert = alert_generator.assign_alert(alert, assigned_to='investigator1',
+                                             assigned_by='supervisor', notes='Please review')
+
+        self.assertEqual(alert.assigned_to, 'investigator1')
+        self.assertIsNotNone(alert.assigned_at)
+        self.assertEqual(alert.comments.filter(comment_type='ASSIGNMENT').count(), 1)
+
+        alert = alert_generator.assign_alert(alert, assigned_to='', assigned_by='supervisor')
+
+        self.assertEqual(alert.assigned_to, '')
+        self.assertIsNone(alert.assigned_at)
+        self.assertEqual(alert.comments.filter(comment_type='ASSIGNMENT').count(), 2)
+
+    def test_alert_add_comment(self):
+        """Issue #39: adding a free-form investigation note to an alert"""
+        alert_generator = get_alert_generator()
+
+        alert = alert_generator.generate_alert(
+            transaction=self.transaction,
+            triggered_rules=[],
+            risk_score=Decimal('85'),
+            severity='HIGH',
+            reasons=['High transaction amount']
+        )
+
+        comment = alert_generator.add_comment(alert, author='investigator1',
+                                              comment='Looks suspicious, escalating soon')
+
+        self.assertIsInstance(comment, AlertComment)
+        self.assertEqual(alert.comments.count(), 1)
+        self.assertEqual(comment.comment_type, 'COMMENT')
 
 
 class ReportGeneratorTest(TestCase):

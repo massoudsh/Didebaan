@@ -131,9 +131,9 @@ class RuleAdmin(admin.ModelAdmin):
 class AlertAdmin(admin.ModelAdmin):
     list_display = (
         'alert_id', 'customer', 'transaction', 'severity', 'status',
-        'risk_score', 'created_at', 'reviewed_by'
+        'risk_score', 'assigned_to', 'created_at', 'reviewed_by'
     )
-    list_filter = ('severity', 'status', 'created_at')
+    list_filter = ('severity', 'status', 'assigned_to', 'created_at')
     search_fields = ('alert_id', 'customer__customer_id', 'transaction__transaction_id', 'title')
     readonly_fields = ('id', 'created_at', 'updated_at')
     ordering = ('-created_at',)
@@ -178,9 +178,9 @@ aml_admin_site.register(RiskScore, RiskScoreAdmin)
 aml_admin_site.register(Report, ReportAdmin)
 
 
-# ─── New models for issues #30, #31, #32, #33 ────────────────────────────────
+# ─── New models for issues #30, #31, #32, #33, #39 ────────────────────────────
 
-from .models import RuleVersion, ThresholdConfig, ReportComment, Notification
+from .models import RuleVersion, ThresholdConfig, ReportComment, Notification, AlertComment
 
 
 class ThresholdConfigAdmin(admin.ModelAdmin):
@@ -223,10 +223,20 @@ class NotificationAdmin(admin.ModelAdmin):
     list_per_page = 25
 
 
+class AlertCommentAdmin(admin.ModelAdmin):
+    list_display = ('alert', 'comment_type', 'author', 'created_at')
+    list_filter = ('comment_type',)
+    search_fields = ('alert__alert_id', 'author', 'comment')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    list_per_page = 25
+
+
 aml_admin_site.register(ThresholdConfig, ThresholdConfigAdmin)
 aml_admin_site.register(RuleVersion, RuleVersionAdmin)
 aml_admin_site.register(ReportComment, ReportCommentAdmin)
 aml_admin_site.register(Notification, NotificationAdmin)
+aml_admin_site.register(AlertComment, AlertCommentAdmin)
 
 
 # ─── Fraud & Abuse Intelligence models (Didebaan pivot) ──────────────────────
