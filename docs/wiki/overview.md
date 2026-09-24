@@ -18,6 +18,7 @@ Django 4.2 · DRF 3.14 · PostgreSQL (SQLite برای تست) · Celery + Redis 
 - `rules/aml_rules.py` — موتور قوانین (`RuleEngine` پایه + `ExtendedRuleEngine` با قوانین ایران/fraud). singleton سراسری از طریق `get_rule_engine()`.
 - `services/` — منطق تجاری: `TransactionMonitor` (نظارت + محاسبه ریسک)، `AlertGenerator` (تولید/بررسی هشدار)، `RiskScorer`، `ReportGenerator` (SAR/CTR)، `notification_service` (ایمیل/webhook).
 - `views.py` + `urls.py` — REST API روی همه‌ی مدل‌ها (`/api/customers/`, `/api/transactions/`, `/api/alerts/`, `/api/rules/`, `/api/devices/`, `/api/merchants/`, `/api/reports/`, `/api/audit-log/`) + endpointهای سفارشی مثل `alerts/export/` (CSV/XLSX) و `alerts/statistics/`.
+- `templates/aml/dashboard.html` — داشبورد عملیاتی فارسی و RTL با شاخص‌های کلیدی، نمودارهای ریسک، دسترسی سریع و تم‌های گرافیت/فیروزه/زعفران/انار/لاجورد/کاغذ.
 - `middleware.py` — `AuditTrailMiddleware` برای لاگ کامل هر درخواست.
 - `tasks.py` — پردازش async تراکنش و گزارش روزانه ریسک با Celery.
 - `ml/model.py` — لایه‌ی اختیاری ML روی امتیاز ریسک قوانین.

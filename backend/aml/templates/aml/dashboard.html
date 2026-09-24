@@ -1,362 +1,225 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="fa" dir="rtl" data-theme="dark">
+<html lang="fa" dir="rtl" data-theme="graphite">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Didebaan AML — سامانه مبارزه با پول‌شویی</title>
+  <meta name="theme-color" content="#172129">
+  <title>دیده‌بان | مرکز کنترل ریسک</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    /* Issue #21: CSS Variables for Dark/Light Theme */
-    :root[data-theme="dark"] {
-      --bg-main: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      --bg-card: rgba(30, 41, 59, 0.85);
-      --bg-card2: rgba(30, 41, 59, 0.6);
-      --border: rgba(71, 85, 105, 0.5);
-      --border2: rgba(71, 85, 105, 0.35);
-      --text-main: #e2e8f0;
-      --text-head: #f8fafc;
-      --text-sub: #94a3b8;
-      --text-label: #94a3b8;
-      --text-info: #cbd5e1;
-      --accent: #38bdf8;
-      --link-bg: #1e293b;
-      --link-border: #334155;
-      --link-color: #cbd5e1;
-      --link-hover: #334155;
-      --link-hover-color: #f1f5f9;
-      --primary-btn: #0ea5e9;
-      --footer: #475569;
-      --alert-num: #f87171;
-    }
-    :root[data-theme="light"] {
-      --bg-main: linear-gradient(135deg, #f0f4f8 0%, #e2eaf2 100%);
-      --bg-card: rgba(255,255,255,0.95);
-      --bg-card2: rgba(248,250,252,0.9);
-      --border: rgba(148,163,184,0.5);
-      --border2: rgba(148,163,184,0.3);
-      --text-main: #1e293b;
-      --text-head: #0f172a;
-      --text-sub: #475569;
-      --text-label: #64748b;
-      --text-info: #334155;
-      --accent: #0284c7;
-      --link-bg: #f1f5f9;
-      --link-border: #cbd5e1;
-      --link-color: #334155;
-      --link-hover: #e2e8f0;
-      --link-hover-color: #0f172a;
-      --primary-btn: #0284c7;
-      --footer: #94a3b8;
-      --alert-num: #dc2626;
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #10171b;
+      --surface: #172129;
+      --surface-raised: #1c2a31;
+      --surface-soft: #21323a;
+      --line: rgba(184, 207, 211, .14);
+      --line-strong: rgba(184, 207, 211, .24);
+      --text: #edf4f3;
+      --muted: #9cafb1;
+      --faint: #71868a;
+      --brand: #5bd6c1;
+      --brand-strong: #2fae9a;
+      --brand-soft: rgba(91, 214, 193, .12);
+      --danger: #f17f83;
+      --warning: #e9bd70;
+      --success: #71d39e;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .16);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root[data-theme="turquoise"] { --brand: #5bd6c1; --brand-strong: #2fae9a; --brand-soft: rgba(91, 214, 193, .12); }
+    :root[data-theme="saffron"] { --brand: #f1c56d; --brand-strong: #d99b35; --brand-soft: rgba(241, 197, 109, .13); }
+    :root[data-theme="pomegranate"] { --brand: #f18a8a; --brand-strong: #ce5e68; --brand-soft: rgba(241, 138, 138, .13); }
+    :root[data-theme="lapis"] { --brand: #82b8f4; --brand-strong: #568fd7; --brand-soft: rgba(130, 184, 244, .13); }
+    :root[data-theme="paper"] {
+      --bg: #f4f1ea; --surface: #fffdf8; --surface-raised: #fffaf1; --surface-soft: #f2eee5;
+      --line: rgba(42, 58, 62, .13); --line-strong: rgba(42, 58, 62, .22); --text: #24363b;
+      --muted: #64777a; --faint: #8d9a9a; --shadow: 0 18px 50px rgba(57, 63, 52, .09);
+    }
+
+    * { box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-      direction: rtl;
-      background: var(--bg-main);
-      min-height: 100vh;
-      color: var(--text-main);
-      transition: background 0.3s, color 0.3s;
+      margin: 0; min-width: 320px; background: var(--bg); color: var(--text);
+      font-family: 'Vazirmatn', Tahoma, Arial, sans-serif; font-size: 16.5px; line-height: 1.8;
+      transition: background .25s ease, color .25s ease;
     }
-    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
-
-    .header {
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1.25rem;
-      margin-bottom: 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-    h1 { font-size: 2rem; font-weight: 700; color: var(--text-head); }
-    .badge {
-      display: inline-block; background: var(--primary-btn); color: #fff;
-      font-size: 0.7rem; padding: 2px 8px; border-radius: 99px;
-      vertical-align: middle; margin-right: 8px;
-    }
-    .subtitle { color: var(--text-sub); font-size: 0.95rem; margin-top: 0.25rem; }
-
-    /* Issue #21: Theme Toggle */
-    .theme-toggle {
-      flex-shrink: 0;
-      background: var(--link-bg);
-      border: 1px solid var(--link-border);
-      color: var(--link-color);
-      border-radius: 8px;
-      padding: 0.45rem 1rem;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: background 0.2s;
-    }
-    .theme-toggle:hover { background: var(--link-hover); }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px; padding: 1.4rem 1.25rem; text-align: center;
-      transition: border-color 0.2s;
-    }
-    .card:hover { border-color: var(--accent); }
-    .card .num { font-size: 2.2rem; font-weight: 700; color: var(--accent); }
-    .card .label { font-size: 0.9rem; color: var(--text-label); margin-top: 0.3rem; }
-    .card.alert-card .num { color: var(--alert-num); }
-
-    .section-title { font-size: 1rem; font-weight: 600; color: var(--text-info); margin: 0 0 0.75rem; }
-
-    /* Issue #19: Charts grid */
-    .charts-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.25rem;
-      margin-bottom: 2rem;
-    }
-    .chart-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border2);
-      border-radius: 12px;
-      padding: 1.25rem;
-    }
-    .chart-card h3 {
-      font-size: 0.8rem; color: var(--text-label);
-      margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.04em;
-    }
-    .chart-card canvas { max-height: 200px; }
-
-    .links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2rem; }
-    .links a {
-      display: inline-block; padding: 0.55rem 1.1rem;
-      background: var(--link-bg); color: var(--link-color);
-      text-decoration: none; border-radius: 8px;
-      font-size: 0.88rem; border: 1px solid var(--link-border);
-      transition: background 0.15s;
-    }
-    .links a:hover { background: var(--link-hover); color: var(--link-hover-color); }
-    .links a.primary { background: var(--primary-btn); color: #fff; border-color: var(--primary-btn); }
-    .links a.primary:hover { opacity: 0.9; }
-
-    .info-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1rem; margin-bottom: 2rem;
-    }
-    .info-card {
-      background: var(--bg-card2); border: 1px solid var(--border2);
-      border-radius: 10px; padding: 1rem 1.25rem;
-    }
-    .info-card h3 { font-size: 0.8rem; color: var(--text-label); margin-bottom: 0.5rem; text-transform: uppercase; }
-    .info-card p { font-size: 0.9rem; color: var(--text-info); line-height: 1.6; }
-
-    .footer { margin-top: 2rem; font-size: 0.78rem; color: var(--footer); border-top: 1px solid var(--border2); padding-top: 1rem; }
+    button, a { font: inherit; }
+    a { color: inherit; }
+    .shell { display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { border-left: 1px solid var(--line); padding: 28px 18px; background: var(--surface); }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 30px; }
+    .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: var(--brand); color: var(--bg); font-weight: 800; font-size: 21px; }
+    .brand strong { display: block; font-size: 19px; line-height: 1.3; }
+    .brand small { display: block; color: var(--muted); font-size: 12px; }
+    .nav-label { color: var(--faint); font-size: 12px; margin: 18px 12px 8px; }
+    .nav { display: grid; gap: 5px; }
+    .nav a { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--muted); text-decoration: none; transition: background .18s, color .18s; }
+    .nav a:hover, .nav a.active { background: var(--brand-soft); color: var(--text); }
+    .nav a.active { box-shadow: inset -3px 0 var(--brand); }
+    .nav-icon { width: 22px; text-align: center; color: var(--brand); }
+    .sidebar-note { margin-top: 34px; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); }
+    .sidebar-note span { display: block; color: var(--success); font-size: 12px; margin-bottom: 5px; }
+    .sidebar-note p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .main { width: 100%; max-width: 1480px; padding: 32px clamp(20px, 4vw, 58px) 48px; margin: 0 auto; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 30px; }
+    .eyebrow { color: var(--brand); font-size: 13px; font-weight: 600; margin: 0 0 3px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 4px; font-size: clamp(24px, 3vw, 34px); line-height: 1.35; letter-spacing: -.02em; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 14px; }
+    .toolbar { display: flex; align-items: center; gap: 10px; }
+    .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 5px rgba(113, 211, 158, .12); }
+    .theme-select { min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); cursor: pointer; }
+    .hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 28px 30px; margin-bottom: 20px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: radial-gradient(circle at 12% 20%, var(--brand-soft), transparent 34%), var(--surface); box-shadow: var(--shadow); }
+    .hero h2 { margin-bottom: 5px; font-size: 22px; }
+    .hero p { margin-bottom: 0; max-width: 640px; color: var(--muted); font-size: 14px; }
+    .hero-metric { flex: 0 0 auto; padding: 12px 22px; border-right: 1px solid var(--line-strong); }
+    .hero-metric strong { display: block; color: var(--brand); font-size: 31px; line-height: 1.3; }
+    .hero-metric span { color: var(--muted); font-size: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .stat { position: relative; padding: 19px 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+    .stat::after { content: ''; position: absolute; inset: auto -20px -34px auto; width: 100px; height: 100px; border-radius: 50%; background: var(--brand-soft); }
+    .stat.alert { --brand: var(--danger); --brand-soft: rgba(241, 127, 131, .12); }
+    .stat-label { color: var(--muted); font-size: 13px; }
+    .stat-value { display: block; margin-top: 5px; color: var(--text); font-size: 29px; font-weight: 700; line-height: 1.3; }
+    .content-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(290px, .8fr); gap: 18px; }
+    .panel { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); padding: 21px; }
+    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .panel-heading h2 { margin: 0; font-size: 17px; }
+    .panel-heading span { color: var(--faint); font-size: 12px; }
+    .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .chart-box { min-height: 250px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); }
+    .chart-box.wide { grid-column: 1 / -1; }
+    .chart-box h3 { margin-bottom: 8px; color: var(--muted); font-size: 13px; font-weight: 500; }
+    .chart-box canvas { width: 100% !important; max-height: 205px; }
+    .quick-links { display: grid; gap: 9px; }
+    .quick-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--muted); text-decoration: none; font-size: 14px; transition: border-color .18s, background .18s, color .18s; }
+    .quick-link:hover { border-color: var(--brand); background: var(--brand-soft); color: var(--text); }
+    .quick-link b { color: var(--brand); font-size: 18px; font-weight: 400; }
+    .facts { display: grid; gap: 10px; margin-top: 18px; }
+    .fact { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .fact:last-child { border-bottom: 0; }
+    .fact span { color: var(--muted); }
+    .fact strong { color: var(--text); font-weight: 500; text-align: left; }
+    footer { padding-top: 24px; color: var(--faint); font-size: 12px; }
+    @media (max-width: 1050px) { .shell { grid-template-columns: 210px minmax(0, 1fr); } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .content-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .shell { display: block; } .sidebar { padding: 16px; border-left: 0; border-bottom: 1px solid var(--line); } .brand { padding-bottom: 12px; } .nav-label, .sidebar-note { display: none; } .nav { display: flex; overflow-x: auto; gap: 5px; } .nav a { white-space: nowrap; } .nav a.active { box-shadow: inset 0 -3px 0 var(--brand); } .main { padding: 24px 16px 35px; } .topbar, .hero { align-items: flex-start; flex-direction: column; } .toolbar { width: 100%; justify-content: space-between; } .hero { padding: 22px; } .hero-metric { width: 100%; padding: 12px 0 0; border-right: 0; border-top: 1px solid var(--line-strong); } .charts { grid-template-columns: 1fr; } .chart-box.wide { grid-column: auto; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div>
-        <h1>Didebaan AML <span class="badge">ایران</span></h1>
-        <p class="subtitle">سامانه مبارزه با پول‌شویی &nbsp;&middot;&nbsp; نظارت بر تراکنش و امتیازدهی ریسک &nbsp;&middot;&nbsp; گزارش‌دهی رگولاتوری</p>
+  <div class="shell">
+    <aside class="sidebar" aria-label="ناوبری اصلی">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">د</div>
+        <div><strong>دیده‌بان</strong><small>هوش ریسک و مقابله با تقلب</small></div>
       </div>
-      <!-- Issue #21: Theme Toggle Button -->
-      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">☀️ روشن</button>
-    </div>
+      <div class="nav-label">مرکز کنترل</div>
+      <nav class="nav">
+        <a href="/" class="active"><span class="nav-icon">◈</span>نمای کلی</a>
+        <a href="/api/alerts/"><span class="nav-icon">!</span>هشدارها</a>
+        <a href="/api/transactions/"><span class="nav-icon">↔</span>تراکنش‌ها</a>
+        <a href="/api/customers/"><span class="nav-icon">○</span>مشتریان</a>
+        <a href="/api/reports/"><span class="nav-icon">▤</span>گزارش‌ها</a>
+      </nav>
+      <div class="nav-label">ابزارها</div>
+      <nav class="nav">
+        <a href="/api/rules/"><span class="nav-icon">⌘</span>قوانین ریسک</a>
+        <a href="{% url 'aml_admin:index' %}"><span class="nav-icon">⚙</span>تنظیمات پنل</a>
+      </nav>
+      <div class="sidebar-note"><span>● سامانه عملیاتی است</span><p>داده‌ها و هشدارهای ریسک به‌صورت پیوسته پایش می‌شوند.</p></div>
+    </aside>
 
-    <!-- Summary counts -->
-    <div class="cards">
-      <div class="card">
-        <div class="num">{{ customers }}</div>
-        <div class="label">مشتریان</div>
-      </div>
-      <div class="card">
-        <div class="num">{{ transactions }}</div>
-        <div class="label">تراکنش‌ها</div>
-      </div>
-      <div class="card alert-card">
-        <div class="num">{{ alerts_open }}</div>
-        <div class="label">هشدارهای باز</div>
-      </div>
-      <div class="card">
-        <div class="num">{{ rules }}</div>
-        <div class="label">قوانین فعال</div>
-      </div>
-    </div>
+    <main class="main">
+      <header class="topbar">
+        <div><p class="eyebrow">مرکز کنترل ریسک</p><h1>نمای کلی سامانه</h1><p class="subtitle">تصویر یکپارچه‌ای از وضعیت تقلب، ریسک و انطباق امروز</p></div>
+        <div class="toolbar"><div class="status"><span class="status-dot"></span>سرویس‌ها پایدار</div><label><span class="sr-only">انتخاب تم</span><select class="theme-select" id="themeSelect" aria-label="انتخاب تم"><option value="graphite">گرافیت</option><option value="turquoise">فیروزه</option><option value="saffron">زعفران</option><option value="pomegranate">انار</option><option value="lapis">لاجورد</option><option value="paper">کاغذ</option></select></label></div>
+      </header>
 
-    <!-- Issue #19: Charts -->
-    <p class="section-title">نمودار وضعیت</p>
-    <div class="charts-grid">
-      <div class="chart-card">
-        <h3>توزیع هشدار بر اساس شدت</h3>
-        <canvas id="severityChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3>توزیع ریسک مشتریان</h3>
-        <canvas id="riskChart"></canvas>
-      </div>
-      <div class="chart-card">
-        <h3>روند هشدارها (۷ روز اخیر)</h3>
-        <canvas id="trendChart"></canvas>
-      </div>
-    </div>
+      <section class="hero" aria-labelledby="hero-title">
+        <div><h2 id="hero-title">تصمیم‌گیری سریع، با توضیح روشن</h2><p>دیده‌بان جریان تراکنش‌ها را بررسی می‌کند، ریسک را امتیازدهی می‌کند و دلیل هر هشدار را برای تیم بررسی قابل مشاهده نگه می‌دارد.</p></div>
+        <div class="hero-metric"><strong>{{ alerts_open }}</strong><span>هشدار نیازمند بررسی</span></div>
+      </section>
 
-    <!-- Quick links -->
-    <p class="section-title">دسترسی سریع</p>
-    <div class="links">
-      <a href="{% url 'aml_admin:index' %}" class="primary">پنل مدیریت</a>
-      <a href="/api/">API</a>
-      <a href="/api/docs/">مستندات Swagger</a>
-      <a href="/api/redoc/">مستندات ReDoc</a>
-      <a href="/api/health/">وضعیت سرویس</a>
-      <a href="/api/alerts/">هشدارها</a>
-      <a href="/api/alerts/export/?export_format=csv">خروجی CSV هشدارها</a>
-      <a href="/api/alerts/export/?export_format=xlsx">خروجی Excel هشدارها</a>
-      <a href="/api/reports/">گزارش‌ها</a>
-    </div>
+      <section class="stats" aria-label="شاخص‌های کلیدی">
+        <article class="stat"><span class="stat-label">کل مشتریان</span><strong class="stat-value js-number">{{ customers }}</strong></article>
+        <article class="stat"><span class="stat-label">تراکنش‌های پایش‌شده</span><strong class="stat-value js-number">{{ transactions }}</strong></article>
+        <article class="stat alert"><span class="stat-label">هشدارهای باز</span><strong class="stat-value js-number">{{ alerts_open }}</strong></article>
+        <article class="stat"><span class="stat-label">قوانین فعال</span><strong class="stat-value js-number">{{ rules }}</strong></article>
+      </section>
 
-    <div class="info-grid">
-      <div class="info-card">
-        <h3>نهاد نظارتی</h3>
-        <p>بانک مرکزی جمهوری اسلامی ایران<br>واحد اطلاعات مالی (FIU)</p>
-      </div>
-      <div class="info-card">
-        <h3>پول رایج</h3>
-        <p>ریال ایران (IRR)<br>آستانه CTR: ۵۰۰,۰۰۰,۰۰۰ ریال</p>
-      </div>
-      <div class="info-card">
-        <h3>انواع گزارش</h3>
-        <p>گزارش تراکنش مشکوک (SAR)<br>گزارش تراکنش کلان (CTR)</p>
-      </div>
-    </div>
+      <div class="content-grid">
+        <section class="panel" aria-labelledby="charts-title">
+          <div class="panel-heading"><h2 id="charts-title">تصویر ریسک</h2><span>۷ روز اخیر</span></div>
+          <div class="charts">
+            <div class="chart-box"><h3>شدت هشدارها</h3><canvas id="severityChart" aria-label="نمودار شدت هشدارها"></canvas></div>
+            <div class="chart-box"><h3>سطح ریسک مشتریان</h3><canvas id="riskChart" aria-label="نمودار سطح ریسک مشتریان"></canvas></div>
+            <div class="chart-box wide"><h3>روند ایجاد هشدار</h3><canvas id="trendChart" aria-label="نمودار روند ایجاد هشدار"></canvas></div>
+          </div>
+        </section>
 
-    <p class="footer">Didebaan AML &nbsp;&middot;&nbsp; Django + DRF &nbsp;&middot;&nbsp; تطبیق‌یافته با بازار ایران</p>
+        <aside>
+          <section class="panel" aria-labelledby="links-title"><div class="panel-heading"><h2 id="links-title">دسترسی سریع</h2></div><div class="quick-links">
+            <a class="quick-link" href="{% url 'aml_admin:index' %}"><span>ورود به پنل مدیریت</span><b>←</b></a>
+            <a class="quick-link" href="/api/docs/"><span>مستندات API</span><b>←</b></a>
+            <a class="quick-link" href="/api/alerts/export/?export_format=xlsx"><span>خروجی اکسل هشدارها</span><b>↓</b></a>
+            <a class="quick-link" href="/api/health/"><span>بررسی سلامت سرویس</span><b>↗</b></a>
+          </div></section>
+          <section class="panel" style="margin-top:18px" aria-labelledby="facts-title"><div class="panel-heading"><h2 id="facts-title">زمینهٔ انطباق</h2></div><div class="facts"><div class="fact"><span>بازار هدف</span><strong>فین‌تک ایران</strong></div><div class="fact"><span>واحد ناظر</span><strong>FIU / بانک مرکزی</strong></div><div class="fact"><span>ارز پایه</span><strong>ریال ایران (IRR)</strong></div><div class="fact"><span>آستانه CTR</span><strong>۵۰۰ میلیون ریال</strong></div></div></section>
+        </aside>
+      </div>
+      <footer>دیده‌بان · موتور هوشمند تشخیص تقلب و سوءاستفاده · طراحی‌شده برای عملیات فارسی و راست‌چین</footer>
+    </main>
   </div>
 
   <script>
-    /* ── Issue #21: Theme Toggle ── */
-    function toggleTheme() {
-      const html = document.documentElement;
-      const btn = document.getElementById('themeToggle');
-      const current = html.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      html.setAttribute('data-theme', next);
-      btn.textContent = next === 'dark' ? '☀️ روشن' : '🌙 تیره';
-      localStorage.setItem('aml-theme', next);
-      updateChartColors();
-    }
-
-    // Restore saved theme on load
-    (function () {
-      const saved = localStorage.getItem('aml-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', saved);
-    })();
-
-    /* ── Issue #19: Charts ── */
     const severityLabels = {{ severity_labels_json|safe }};
-    const severityData   = {{ severity_data_json|safe }};
+    const severityData = {{ severity_data_json|safe }};
     const severityColors = {{ severity_colors_json|safe }};
-    const riskLabels     = {{ risk_labels_json|safe }};
-    const riskData       = {{ risk_data_json|safe }};
-    const trendLabels    = {{ trend_labels_json|safe }};
-    const trendData      = {{ trend_data_json|safe }};
+    const riskLabels = {{ risk_labels_json|safe }};
+    const riskData = {{ risk_data_json|safe }};
+    const trendLabels = {{ trend_labels_json|safe }};
+    const trendData = {{ trend_data_json|safe }};
+    const labelMap = { LOW: 'کم', MEDIUM: 'متوسط', HIGH: 'زیاد', CRITICAL: 'بحرانی' };
+    const fa = new Intl.NumberFormat('fa-IR');
+    document.querySelectorAll('.js-number').forEach((node) => { node.textContent = fa.format(Number(node.textContent)); });
 
-    const riskColorMap = {
-      LOW: '#22c55e', MEDIUM: '#f59e0b',
-      HIGH: '#ef4444', CRITICAL: '#7c3aed'
-    };
-
-    let charts = {};
-
-    function chartColors() {
-      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-      return {
-        text:  dark ? '#94a3b8' : '#475569',
-        grid:  dark ? 'rgba(148,163,184,0.12)' : 'rgba(71,85,105,0.15)',
-      };
-    }
-
-    function initCharts() {
-      Chart.defaults.font.family = "'Segoe UI', Tahoma, Arial, sans-serif";
-      const { text, grid } = chartColors();
-
-      charts.severity = new Chart(document.getElementById('severityChart'), {
-        type: 'doughnut',
-        data: {
-          labels: severityLabels,
-          datasets: [{ data: severityData, backgroundColor: severityColors, borderWidth: 2, borderColor: 'transparent' }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: 'bottom', labels: { color: text, padding: 10, font: { size: 11 } } } }
-        }
-      });
-
-      charts.risk = new Chart(document.getElementById('riskChart'), {
-        type: 'doughnut',
-        data: {
-          labels: riskLabels,
-          datasets: [{
-            data: riskData,
-            backgroundColor: riskLabels.map(l => riskColorMap[l] || '#64748b'),
-            borderWidth: 2, borderColor: 'transparent'
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: 'bottom', labels: { color: text, padding: 10, font: { size: 11 } } } }
-        }
-      });
-
-      charts.trend = new Chart(document.getElementById('trendChart'), {
-        type: 'line',
-        data: {
-          labels: trendLabels,
-          datasets: [{
-            label: 'هشدارها', data: trendData,
-            borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)',
-            fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#38bdf8'
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: { ticks: { color: text }, grid: { color: grid } },
-            y: { ticks: { color: text, stepSize: 1 }, grid: { color: grid }, beginAtZero: true }
-          },
-          plugins: { legend: { labels: { color: text } } }
-        }
-      });
-    }
-
-    function updateChartColors() {
-      const { text, grid } = chartColors();
-      ['severity', 'risk'].forEach(k => {
-        if (!charts[k]) return;
-        charts[k].options.plugins.legend.labels.color = text;
-        charts[k].update();
-      });
-      if (charts.trend) {
-        ['x','y'].forEach(ax => {
-          charts.trend.options.scales[ax].ticks.color = text;
-          charts.trend.options.scales[ax].grid.color = grid;
-        });
-        charts.trend.options.plugins.legend.labels.color = text;
-        charts.trend.update();
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      // Sync toggle button text with restored theme
-      const btn = document.getElementById('themeToggle');
-      const theme = document.documentElement.getAttribute('data-theme') || 'dark';
-      btn.textContent = theme === 'dark' ? '☀️ روشن' : '🌙 تیره';
-
-      initCharts();
+    const themeSelect = document.getElementById('themeSelect');
+    const savedTheme = localStorage.getItem('didebaan-theme') || 'graphite';
+    document.documentElement.dataset.theme = savedTheme;
+    themeSelect.value = savedTheme;
+    themeSelect.addEventListener('change', () => {
+      document.documentElement.dataset.theme = themeSelect.value;
+      localStorage.setItem('didebaan-theme', themeSelect.value);
+      updateChartColors();
     });
+
+    const chartStore = {};
+    function chartPalette() {
+      const paper = document.documentElement.dataset.theme === 'paper';
+      return { text: paper ? '#64777a' : '#9cafb1', grid: paper ? 'rgba(42,58,62,.12)' : 'rgba(184,207,211,.12)', line: paper ? '#2fae9a' : '#5bd6c1' };
+    }
+    function initCharts() {
+      const palette = chartPalette();
+      Chart.defaults.font.family = "'Vazirmatn', Tahoma, Arial, sans-serif";
+      Chart.defaults.color = palette.text;
+      chartStore.severity = new Chart(document.getElementById('severityChart'), { type: 'doughnut', data: { labels: severityLabels.map((label) => labelMap[label] || label), datasets: [{ data: severityData, backgroundColor: severityColors, borderWidth: 3, borderColor: 'transparent' }] }, options: { responsive: true, cutout: '67%', plugins: { legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, boxWidth: 8 } } } } });
+      chartStore.risk = new Chart(document.getElementById('riskChart'), { type: 'doughnut', data: { labels: riskLabels.map((label) => labelMap[label] || label), datasets: [{ data: riskData, backgroundColor: riskLabels.map((label) => ({ LOW: '#71d39e', MEDIUM: '#e9bd70', HIGH: '#f17f83', CRITICAL: '#b58be8' }[label] || '#82979a')), borderWidth: 3, borderColor: 'transparent' }] }, options: { responsive: true, cutout: '67%', plugins: { legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, boxWidth: 8 } } } } });
+      chartStore.trend = new Chart(document.getElementById('trendChart'), { type: 'line', data: { labels: trendLabels, datasets: [{ label: 'هشدارها', data: trendData, borderColor: palette.line, backgroundColor: 'rgba(91,214,193,.10)', fill: true, tension: .35, pointRadius: 4, pointBackgroundColor: palette.line }] }, options: { responsive: true, interaction: { intersect: false, mode: 'index' }, scales: { x: { ticks: { color: palette.text }, grid: { color: palette.grid } }, y: { beginAtZero: true, ticks: { color: palette.text, precision: 0 }, grid: { color: palette.grid } } }, plugins: { legend: { labels: { color: palette.text, usePointStyle: true, boxWidth: 8 } } } } });
+    }
+    function updateChartColors() {
+      const palette = chartPalette();
+      Object.values(chartStore).forEach((chart) => { chart.options.plugins.legend.labels.color = palette.text; });
+      const trend = chartStore.trend;
+      if (trend) { trend.data.datasets[0].borderColor = palette.line; trend.data.datasets[0].pointBackgroundColor = palette.line; trend.options.scales.x.ticks.color = palette.text; trend.options.scales.y.ticks.color = palette.text; trend.options.scales.x.grid.color = palette.grid; trend.options.scales.y.grid.color = palette.grid; }
+      Object.values(chartStore).forEach((chart) => chart.update());
+    }
+    document.addEventListener('DOMContentLoaded', initCharts);
   </script>
 </body>
 </html>
