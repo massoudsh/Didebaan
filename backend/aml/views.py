@@ -304,7 +304,7 @@ class AlertViewSet(viewsets.ModelViewSet):
     serializer_class = AlertSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'alert_id'
-    filterset_fields = ['status', 'severity']
+    filterset_fields = ['status', 'severity', 'assigned_to']
     search_fields = ['alert_id', 'title', 'description']
     ordering_fields = ['created_at', 'risk_score', 'severity']
     ordering = ['-created_at']
@@ -321,7 +321,10 @@ class AlertViewSet(viewsets.ModelViewSet):
         severity = self.request.query_params.get('severity', None)
         if severity:
             queryset = queryset.filter(severity=severity)
-        
+
+        if self.request.query_params.get('unassigned') in ('1', 'true'):
+            queryset = queryset.filter(assigned_to='')
+
         return queryset
     
     @action(detail=True, methods=['post'], url_path='review')

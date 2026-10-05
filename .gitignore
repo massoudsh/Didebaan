@@ -67,3 +67,7 @@ celerybeat.pid
 
 # Docs / assets (keep repo code-only; store PDFs locally if needed)
 *.pdf
+
+# Frontend
+node_modules/
+frontend/dist/

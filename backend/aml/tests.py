@@ -1116,3 +1116,15 @@ class JsonLoggingTest(TestCase):
         self.assertEqual(data['message'], 'hello وب')
         self.assertEqual(data['level'], 'INFO')
         self.assertEqual(data['alert_id'], 'A1')
+
+
+class AlertQueueFilterTest(RoadmapBase):
+    def test_assignee_and_unassigned_filters(self):
+        a1, a2 = self.make_alert(1), self.make_alert(2)
+        self.generator.assign_alert(a1, 'inv1', 'boss')
+
+        r = self.api.get('/api/alerts/', {'assigned_to': 'inv1'})
+        self.assertEqual([a['alert_id'] for a in r.json()['results']], [a1.alert_id])
+
+        r = self.api.get('/api/alerts/', {'unassigned': '1'})
+        self.assertEqual([a['alert_id'] for a in r.json()['results']], [a2.alert_id])

@@ -73,7 +73,7 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 - **#42 Bulk alert actions:** `POST /api/alerts/bulk-assign/` and `bulk-review/` to act on a list of `alert_id`s at once (complements the existing bulk export).
   - **Status:** Done — `POST /api/alerts/bulk-assign/` and `bulk-review/`.
 - **#43 Frontend dashboard (RTL/Persian):** Standalone React/Vue app consuming the existing REST API — alert queue with assignment/case-history UI, risk dashboards, RTL layout (Phase 3 items #17–#21, not yet built).
-  - **Status:** Partial — the server-rendered dashboard is now responsive RTL/Persian; the standalone React/Vue app with alert-queue/case-history UI is still open.
+  - **Status:** Done — `frontend/` (React + Vite, RTL/Persian): token login, risk dashboard, alert queue (filters, bulk assign/review, CSV export) and case drawer (assign, review, comment history). Run with `npm install && npm run dev`.
 - **#44 Structured (JSON) logging in production:** Replace default logging config with JSON formatter for log aggregators (Phase 5 item).
   - **Status:** Done — `config.logging.JsonFormatter`, enabled in production settings.
 - **#45 DB indexing/query-plan pass:** Review `Transaction`/`Alert`/`AuditLog` query patterns under load and add missing composite indexes (Phase 5 item).

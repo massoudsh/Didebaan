@@ -387,3 +387,11 @@ docker-compose logs -f app
 | #36 | Replace placeholder XX/YY with real FATF countries | ✅ |
 | #37 | Dockerfile + docker-compose | ✅ |
 | #38 | CI (GitHub Actions) — test, lint, migrate-check | ✅ |
+
+## Frontend (SPA)
+
+```bash
+cd frontend && npm install && npm run dev   # http://localhost:3000, proxies /api to localhost:8000
+```
+
+Create a token user in Django (`createsuperuser`) and sign in. For another API host set `VITE_API_BASE` and add the SPA origin to `CORS_ALLOWED_ORIGINS`. Note: DRF throttling defaults to 100 requests/hour per user.
