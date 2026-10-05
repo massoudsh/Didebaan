@@ -105,11 +105,11 @@ def _send_email(notification) -> None:
         logger.error(f"Email notification failed: {exc}")
 
 
-def _send_webhook(notification) -> None:
+def _send_webhook(notification, event: str = 'alert.created') -> None:
     """Send JSON POST to webhook URL."""
     try:
         payload = {
-            'event': 'alert.created',
+            'event': event,
             'alert_id': str(notification.related_alert.alert_id) if notification.related_alert else None,
             'severity': notification.related_alert.severity if notification.related_alert else None,
             'risk_score': float(notification.related_alert.risk_score) if notification.related_alert else None,
@@ -135,3 +135,31 @@ def _send_webhook(notification) -> None:
         notification.error_message = str(exc)
         notification.save(update_fields=['status', 'error_message'])
         logger.error(f"Webhook notification failed: {exc}")
+
+
+def notify_sla_breach(alert, sla_hours) -> None:
+    """Notify recipients that an assigned alert exceeded its SLA and was escalated."""
+    from aml.models import Notification
+
+    subject = f"[Didebaan AML] نقض SLA هشدار {alert.alert_id}"
+    message = (
+        f"هشدار ارجاع‌شده در مهلت {sla_hours} ساعت بررسی نشد و به‌صورت خودکار ارجاع سطح بالاتر شد.\n\n"
+        f"شناسه هشدار: {alert.alert_id}\n"
+        f"بررسی‌کننده: {alert.assigned_to}\n"
+        f"شدت فعلی: {alert.severity}\n"
+        f"زمان ارجاع: {alert.assigned_at.strftime('%Y-%m-%d %H:%M:%S') if alert.assigned_at else '—'}"
+    )
+
+    for recipient in NOTIFY_EMAIL_RECIPIENTS:
+        notif = Notification.objects.create(
+            notification_type='EMAIL', recipient=recipient, subject=subject,
+            message=message, related_alert=alert,
+        )
+        _send_email(notif)
+
+    if NOTIFY_WEBHOOK_URL:
+        notif = Notification.objects.create(
+            notification_type='WEBHOOK', recipient=NOTIFY_WEBHOOK_URL, subject=subject,
+            message=message, related_alert=alert,
+        )
+        _send_webhook(notif, event='alert.sla_breached')

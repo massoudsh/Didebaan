@@ -21,6 +21,11 @@ app.conf.beat_schedule = {
         'task': 'aml.tasks.monitor_pending_transactions',
         'schedule': crontab(minute='*/5'),
     },
+    # Escalate assigned alerts that breached their SLA
+    'escalate-overdue-alerts': {
+        'task': 'aml.tasks.escalate_overdue_alerts',
+        'schedule': crontab(minute='*/15'),
+    },
     # Daily risk report at 00:05
     'daily-risk-report': {
         'task': 'aml.tasks.generate_daily_risk_report',

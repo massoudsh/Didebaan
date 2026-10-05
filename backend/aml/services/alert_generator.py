@@ -9,7 +9,7 @@ from typing import Dict, Optional, List
 from django.utils import timezone
 from django.db.models import Avg
 
-from aml.models import Alert, AlertComment, Transaction, Customer, Rule
+from aml.models import Alert, AlertComment, Transaction, Customer, Rule, ThresholdConfig
 
 logger = logging.getLogger('aml')
 
@@ -283,6 +283,50 @@ class AlertGenerator:
             comment=comment,
             author=author,
         )
+
+    def get_sla_hours(self) -> Decimal:
+        """Alert SLA window in hours: active ThresholdConfig, else settings default (24)."""
+        from django.conf import settings
+        config = ThresholdConfig.objects.filter(
+            threshold_type='ALERT_SLA_HOURS', is_active=True
+        ).order_by('-updated_at').first()
+        if config and config.value > 0:
+            return config.value
+        return Decimal(str(getattr(settings, 'AML_ALERT_SLA_HOURS', 24)))
+
+    def escalate_overdue_alerts(self, now=None) -> List[Alert]:
+        """
+        Issue #41: Escalate assigned alerts still OPEN/UNDER_REVIEW past the SLA
+        window, log the breach in the case history and notify recipients.
+        """
+        from datetime import timedelta
+        from .notification_service import notify_sla_breach
+
+        now = now or timezone.now()
+        sla_hours = self.get_sla_hours()
+        cutoff = now - timedelta(hours=float(sla_hours))
+        overdue = list(
+            Alert.objects.filter(
+                status__in=['OPEN', 'UNDER_REVIEW'],
+                assigned_at__isnull=False,
+                assigned_at__lt=cutoff,
+            ).exclude(assigned_to='')
+        )
+
+        escalated = []
+        for alert in overdue:
+            assignee = alert.assigned_to
+            self.escalate_alert(
+                alert, 'system:sla',
+                f"نقض SLA: هشدار بیش از {sla_hours} ساعت پس از ارجاع به «{assignee}» بررسی نشد",
+            )
+            try:
+                notify_sla_breach(alert, sla_hours)
+            except Exception as exc:
+                logger.error(f"SLA notification failed for {alert.alert_id}: {exc}")
+            escalated.append(alert)
+
+        return escalated
 
     def _log_status_change(self, alert: Alert, previous_status: str,
                            new_status: str, author: str, notes: str) -> None:

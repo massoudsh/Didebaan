@@ -127,3 +127,18 @@ def generate_daily_risk_report() -> dict:
 
     logger.info(f"[task] Daily risk report: {summary}")
     return summary
+
+
+@shared_task
+def escalate_overdue_alerts() -> dict:
+    """
+    Issue #41: Escalate assigned alerts that exceeded the SLA window.
+    Run periodically via Celery Beat.
+    """
+    from aml.services.alert_generator import get_alert_generator
+
+    generator = get_alert_generator()
+    escalated = generator.escalate_overdue_alerts()
+    ids = [a.alert_id for a in escalated]
+    logger.info(f"[task] SLA check: escalated {len(ids)} alerts")
+    return {'escalated': len(ids), 'alert_ids': ids}

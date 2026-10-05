@@ -921,3 +921,198 @@ class BulkExportTest(TestCase):
         r = self.client.get('/api/alerts/export/?export_format=xlsx')
         self.assertEqual(r.status_code, 200)
         self.assertIn('spreadsheetml', r['Content-Type'])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Roadmap #40-#46: watchlist, SLA, bulk actions, comment export, JSON logging
+# ─────────────────────────────────────────────────────────────────────────────
+
+import csv
+import io
+import json
+import logging
+
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+
+from .models import ThresholdConfig, WatchlistEntry
+
+
+class RoadmapBase(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user('officer', password='pw')
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+        self.customer = Customer.objects.create(
+            customer_id='RM001', first_name='A', last_name='B',
+            email='a@b.ir', country='IR',
+        )
+        self.generator = get_alert_generator()
+
+    def make_alert(self, n=1, severity='HIGH'):
+        txn = Transaction.objects.create(
+            transaction_id=f'RMTXN{n}', customer=self.customer, transaction_type='TRANSFER',
+            amount=Decimal('1000'), currency='IRR', status='COMPLETED',
+        )
+        return self.generator.generate_alert(
+            transaction=txn, triggered_rules=[], risk_score=Decimal('80'),
+            severity=severity, reasons=['r'],
+        )
+
+
+class WatchlistTest(RoadmapBase):
+    def test_seeded_countries_exist(self):
+        codes = set(WatchlistEntry.objects.filter(entry_type='COUNTRY').values_list('country_code', flat=True))
+        self.assertTrue({'KP', 'SD', 'SY', 'SO', 'LY'} <= codes)
+
+    def test_api_create_normalises_and_validates(self):
+        r = self.api.post('/api/watchlist/', {'entry_type': 'COUNTRY', 'country_code': 'ir '}, format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()['country_code'], 'IR')
+        self.assertEqual(r.json()['added_by'], 'officer')
+
+        bad = self.api.post('/api/watchlist/', {'entry_type': 'COUNTRY', 'country_code': 'XYZ'}, format='json')
+        self.assertEqual(bad.status_code, 400)
+        bad = self.api.post('/api/watchlist/', {'entry_type': 'ENTITY'}, format='json')
+        self.assertEqual(bad.status_code, 400)
+
+    def test_sanctioned_rule_uses_watchlist(self):
+        Rule.objects.create(
+            name='Sanctioned', description='d', rule_type='SANCTIONED',
+            status='ACTIVE', configuration={}, priority=1, risk_weight=3,
+        )
+        txn = Transaction.objects.create(
+            transaction_id='SANC1', customer=self.customer, transaction_type='TRANSFER',
+            amount=Decimal('1000'), currency='IRR', status='COMPLETED', receiver_country='DE',
+        )
+        engine = get_rule_engine()
+        triggered, _, _ = engine.evaluate_transaction(txn)
+        self.assertEqual(triggered, [])
+
+        WatchlistEntry.objects.create(entry_type='COUNTRY', country_code='DE')
+        triggered, _, _ = get_rule_engine().evaluate_transaction(txn)
+        self.assertEqual(len(triggered), 1)
+
+        WatchlistEntry.objects.filter(country_code='DE').update(is_active=False)
+        triggered, _, _ = get_rule_engine().evaluate_transaction(txn)
+        self.assertEqual(triggered, [])
+
+
+class SlaEscalationTest(RoadmapBase):
+    def test_overdue_assigned_alert_is_escalated_once(self):
+        alert = self.make_alert()
+        self.generator.assign_alert(alert, 'inv1', 'boss')
+        Alert.objects.filter(pk=alert.pk).update(assigned_at=timezone.now() - timedelta(hours=30))
+
+        escalated = self.generator.escalate_overdue_alerts()
+        self.assertEqual([a.alert_id for a in escalated], [alert.alert_id])
+        alert.refresh_from_db()
+        self.assertEqual(alert.status, 'ESCALATED')
+        self.assertTrue(alert.comments.filter(comment_type='STATUS_CHANGE', author='system:sla').exists())
+
+        self.assertEqual(self.generator.escalate_overdue_alerts(), [])
+
+    def test_within_sla_or_unassigned_not_escalated(self):
+        a1 = self.make_alert(1)
+        self.generator.assign_alert(a1, 'inv1', 'boss')
+        a2 = self.make_alert(2)
+        Alert.objects.filter(pk=a2.pk).update(created_at=timezone.now() - timedelta(days=5))
+        self.assertEqual(self.generator.escalate_overdue_alerts(), [])
+
+    def test_threshold_config_overrides_default(self):
+        ThresholdConfig.objects.create(name='sla', threshold_type='ALERT_SLA_HOURS', value=Decimal('2'))
+        alert = self.make_alert()
+        self.generator.assign_alert(alert, 'inv1', 'boss')
+        Alert.objects.filter(pk=alert.pk).update(assigned_at=timezone.now() - timedelta(hours=3))
+        self.assertEqual(len(self.generator.escalate_overdue_alerts()), 1)
+
+    def test_celery_task(self):
+        from .tasks import escalate_overdue_alerts
+        alert = self.make_alert()
+        self.generator.assign_alert(alert, 'inv1', 'boss')
+        Alert.objects.filter(pk=alert.pk).update(assigned_at=timezone.now() - timedelta(hours=48))
+        result = escalate_overdue_alerts()
+        self.assertEqual(result['escalated'], 1)
+
+
+class BulkAlertActionsTest(RoadmapBase):
+    def test_bulk_assign(self):
+        a1, a2 = self.make_alert(1), self.make_alert(2)
+        r = self.api.post('/api/alerts/bulk-assign/', {
+            'alert_ids': [a1.alert_id, a2.alert_id, 'NOPE'], 'assigned_to': 'inv1',
+        }, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(sorted(r.json()['updated']), sorted([a1.alert_id, a2.alert_id]))
+        self.assertEqual(r.json()['not_found'], ['NOPE'])
+        a1.refresh_from_db()
+        self.assertEqual(a1.assigned_to, 'inv1')
+        self.assertEqual(a1.comments.filter(comment_type='ASSIGNMENT').count(), 1)
+
+    def test_bulk_review(self):
+        a1, a2 = self.make_alert(1), self.make_alert(2)
+        r = self.api.post('/api/alerts/bulk-review/', {
+            'alert_ids': [a1.alert_id, a2.alert_id], 'status': 'FALSE_POSITIVE', 'notes': 'ok',
+        }, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        for a in (a1, a2):
+            a.refresh_from_db()
+            self.assertEqual(a.status, 'FALSE_POSITIVE')
+            self.assertEqual(a.reviewed_by, 'officer')
+
+    def test_bulk_validation(self):
+        r = self.api.post('/api/alerts/bulk-review/', {'alert_ids': [], 'status': 'RESOLVED', 'notes': ''}, format='json')
+        self.assertEqual(r.status_code, 400)
+        r = self.api.post('/api/alerts/bulk-assign/', {'alert_ids': ['x']}, format='json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_single_review_still_works(self):
+        a = self.make_alert()
+        r = self.api.post(f'/api/alerts/{a.alert_id}/review/', {'status': 'ESCALATED', 'notes': 'n'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['status'], 'ESCALATED')
+
+
+class AlertCommentExportTest(RoadmapBase):
+    def test_csv_export_with_filters_and_formula_guard(self):
+        a1, a2 = self.make_alert(1), self.make_alert(2)
+        self.generator.add_comment(a1, 'inv1', '=HYPERLINK("http://x")')
+        self.generator.add_comment(a2, 'inv2', 'plain')
+
+        r = self.api.get('/api/alerts/comments-export/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('text/csv', r['Content-Type'])
+        rows = list(csv.reader(io.StringIO(r.content.decode('utf-8-sig'))))
+        self.assertEqual(rows[0][0], 'Alert ID')
+        self.assertEqual(len(rows), 3)
+        self.assertTrue(any(row[6].startswith("'=") for row in rows[1:]))
+
+        r = self.api.get('/api/alerts/comments-export/', {'alert_id': a2.alert_id})
+        rows = list(csv.reader(io.StringIO(r.content.decode('utf-8-sig'))))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][5], 'inv2')
+
+    def test_xlsx_and_bad_date(self):
+        a = self.make_alert()
+        self.generator.add_comment(a, 'inv1', 'x')
+        r = self.api.get('/api/alerts/comments-export/', {'export_format': 'xlsx'})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.content.startswith(b'PK'))
+        r = self.api.get('/api/alerts/comments-export/', {'date_from': 'bad'})
+        self.assertEqual(r.status_code, 400)
+
+    def test_alert_export_still_works(self):
+        self.make_alert()
+        r = self.api.get('/api/alerts/export/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('Alert ID', r.content.decode('utf-8-sig'))
+
+
+class JsonLoggingTest(TestCase):
+    def test_formatter_outputs_valid_json(self):
+        from config.logging import JsonFormatter
+        record = logging.LogRecord('aml', logging.INFO, __file__, 1, 'hello %s', ('وب',), None)
+        record.alert_id = 'A1'
+        data = json.loads(JsonFormatter().format(record))
+        self.assertEqual(data['message'], 'hello وب')
+        self.assertEqual(data['level'], 'INFO')
+        self.assertEqual(data['alert_id'], 'A1')

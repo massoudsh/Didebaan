@@ -19,3 +19,8 @@
 - `backend/aml/services/alert_generator.py:17` — `class AlertGenerator`
 - `backend/aml/services/alert_generator.py` — `assign_alert`, `add_comment`, `_log_status_change`
 - `backend/aml/services/alert_generator.py:318` — `get_alert_generator()`
+
+## SLA و عملیات گروهی (Roadmap #41/#42/#46)
+- `get_sla_hours()` مهلت را از `ThresholdConfig(ALERT_SLA_HOURS)` فعال یا `AML_ALERT_SLA_HOURS` (پیش‌فرض ۲۴) می‌خواند.
+- `escalate_overdue_alerts()` هشدارهای OPEN/UNDER_REVIEW ارجاع‌شده را پس از مهلت ESCALATED می‌کند (نویسنده `system:sla`) و `notify_sla_breach` را صدا می‌زند؛ تسک Celery: `aml.tasks.escalate_overdue_alerts` هر ۱۵ دقیقه.
+- API: `POST /api/alerts/bulk-assign/`، `POST /api/alerts/bulk-review/`، `GET /api/alerts/comments-export/`.

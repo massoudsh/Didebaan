@@ -167,6 +167,8 @@ SPECTACULAR_SETTINGS = {
     ],
 }
 
+AML_ALERT_SLA_HOURS = config('AML_ALERT_SLA_HOURS', default=24, cast=int)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

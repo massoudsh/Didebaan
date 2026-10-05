@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.db.models import Sum, Count, Q, Avg
 from django.db.models.functions import TruncDay
 
-from aml.models import Rule, Transaction, Customer, Device, Merchant
+from aml.models import Rule, Transaction, Customer, Device, Merchant, WatchlistEntry
 
 logger = logging.getLogger('aml')
 
@@ -320,9 +320,6 @@ IRAN_HIGH_RISK_COUNTRIES = [
     'KP', 'MM', 'AF', 'YE', 'SD', 'SS', 'SY', 'SO', 'LY', 'CD', 'CF', 'ML', 'HT', 'PK', 'VU',
 ]
 
-# Countries under UN/FATF sanctions that Iran's FIU monitors for cross-border transactions
-IRAN_SANCTIONED_COUNTRIES = ['KP', 'SD', 'SY', 'SO', 'LY']
-
 
 class ExtendedRuleEngine(RuleEngine):
     """
@@ -476,23 +473,37 @@ class ExtendedRuleEngine(RuleEngine):
     # ── Issue #27: Cross-border with Sanctioned Countries ────────────────────
     def _evaluate_sanctioned_country_rule(self, rule: Rule, transaction: Transaction, config: Dict) -> Dict:
         """
-        Flag any transaction — regardless of amount — where the receiving country
-        is on the UN/FATF sanction list. Issue #27.
+        Flag any transaction — regardless of amount — that touches an active
+        WatchlistEntry (Issues #27, #40): a sanctioned receiver country, a
+        watched receiver name, or a watched customer/receiver national ID.
         """
-        triggered = False
-        reason = ""
-        risk_score = 0
+        reasons = []
+        entries = WatchlistEntry.objects.filter(is_active=True)
 
-        sanctioned = config.get('sanctioned_countries', IRAN_SANCTIONED_COUNTRIES)
-        if transaction.receiver_country in sanctioned:
-            triggered = True
-            reason = (
-                f"Transaction to sanctioned country: {transaction.receiver_country} "
+        country = (transaction.receiver_country or '').strip().upper()
+        if country and entries.filter(entry_type='COUNTRY', country_code=country).exists():
+            reasons.append(
+                f"Transaction to sanctioned country: {country} "
                 f"(amount: {transaction.amount:,.0f} IRR)"
             )
-            risk_score = 95  # Near-maximum — must escalate
 
-        return {'triggered': triggered, 'reason': reason, 'risk_score': risk_score}
+        receiver_name = (transaction.receiver_name or '').strip()
+        if receiver_name:
+            match = entries.filter(entry_type='ENTITY', name__iexact=receiver_name).first()
+            if match:
+                reasons.append(f"Receiver '{receiver_name}' is on watchlist ({match.source_list or 'n/a'})")
+
+        customer_national_id = (transaction.customer.national_id or '').strip()
+        if customer_national_id:
+            match = entries.filter(entry_type='ENTITY', national_id=customer_national_id).first()
+            if match:
+                reasons.append(
+                    f"Customer national ID {customer_national_id} is on watchlist ({match.source_list or 'n/a'})"
+                )
+
+        if not reasons:
+            return {'triggered': False, 'reason': '', 'risk_score': 0}
+        return {'triggered': True, 'reason': ' | '.join(reasons), 'risk_score': 95}  # Near-maximum — must escalate
 
 
     # ── Issue #23: Night/Weekend Activity Detection ──────────────────────────

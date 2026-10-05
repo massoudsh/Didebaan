@@ -59,8 +59,6 @@ class Customer(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['customer_id']),
-            models.Index(fields=['email']),
             models.Index(fields=['current_risk_level']),
         ]
 
@@ -188,9 +186,12 @@ class Transaction(models.Model):
     class Meta:
         ordering = ['-transaction_date']
         indexes = [
-            models.Index(fields=['transaction_id']),
-            models.Index(fields=['transaction_date']),
             models.Index(fields=['customer', 'transaction_date']),
+            models.Index(fields=['customer', 'transaction_type', 'transaction_date']),
+            models.Index(fields=['customer', 'receiver_account']),
+            models.Index(fields=['device', 'transaction_date']),
+            models.Index(fields=['merchant', 'transaction_date']),
+            models.Index(fields=['status', 'created_at']),
             models.Index(fields=['is_suspicious']),
         ]
     
@@ -316,9 +317,10 @@ class Alert(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['alert_id']),
             models.Index(fields=['status', 'severity']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['status', 'assigned_at']),
+            models.Index(fields=['assigned_to', 'status']),
         ]
     
     def __str__(self):
@@ -413,7 +415,6 @@ class Report(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['report_id']),
             models.Index(fields=['report_type', 'status']),
             models.Index(fields=['created_at']),
         ]
@@ -439,9 +440,8 @@ class AuditLog(models.Model):
     class Meta:
         ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['-timestamp']),
-            models.Index(fields=['path']),
-            models.Index(fields=['user']),
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['status_code', 'timestamp']),
         ]
         verbose_name = 'Audit log entry'
         verbose_name_plural = 'Audit log'
@@ -496,6 +496,7 @@ class ThresholdConfig(models.Model):
         ('STRUCTURING_AMOUNT', 'حد تشخیص تجزیه (Structuring)'),
         ('CTR_THRESHOLD', 'آستانه گزارش تراکنش کلان (CTR)'),
         ('SAR_RISK_SCORE', 'آستانه گزارش تراکنش مشکوک (SAR)'),
+        ('ALERT_SLA_HOURS', 'مهلت رسیدگی به هشدار ارجاع‌شده (ساعت)'),
     ]
 
     name = models.CharField(max_length=200, unique=True, verbose_name='نام')
@@ -627,6 +628,63 @@ class AlertComment(models.Model):
 
     def __str__(self):
         return f"{self.alert.alert_id} — {self.comment_type} by {self.author}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Issue #40: Watchlist / sanctioned-entity list (managed via Admin/API)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class WatchlistEntry(models.Model):
+    """
+    A sanctioned country or watched entity. Read by the SANCTIONED rule so
+    compliance can update the list without a code deploy.
+    """
+    ENTRY_TYPES = [
+        ('COUNTRY', 'کشور'),
+        ('ENTITY', 'شخص/نهاد'),
+    ]
+
+    entry_type = models.CharField(max_length=10, choices=ENTRY_TYPES, default='COUNTRY',
+                                  verbose_name='نوع')
+    country_code = models.CharField(max_length=2, blank=True, db_index=True,
+                                    verbose_name='کد کشور (ISO-2)')
+    name = models.CharField(max_length=200, blank=True, verbose_name='نام شخص/نهاد')
+    national_id = models.CharField(max_length=50, blank=True, db_index=True,
+                                   verbose_name='کد/شناسه ملی')
+    source_list = models.CharField(max_length=100, blank=True, verbose_name='فهرست منبع')
+    notes = models.TextField(blank=True, verbose_name='توضیحات')
+    is_active = models.BooleanField(default=True, verbose_name='فعال')
+    added_by = models.CharField(max_length=100, blank=True, verbose_name='ثبت‌کننده')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['entry_type', 'country_code', 'name']
+        indexes = [
+            models.Index(fields=['is_active', 'entry_type']),
+        ]
+        verbose_name = 'مورد فهرست پایش'
+        verbose_name_plural = 'فهرست پایش (تحریم/ممنوعیت)'
+
+    def __str__(self):
+        label = self.country_code if self.entry_type == 'COUNTRY' else (self.name or self.national_id)
+        return f"{self.get_entry_type_display()}: {label}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        self.country_code = (self.country_code or '').strip().upper()
+        self.name = (self.name or '').strip()
+        self.national_id = (self.national_id or '').strip()
+        if self.entry_type == 'COUNTRY':
+            if len(self.country_code) != 2 or not self.country_code.isalpha():
+                raise ValidationError({'country_code': 'کد کشور باید دو حرف (ISO-2) باشد.'})
+        elif not (self.name or self.national_id):
+            raise ValidationError('برای شخص/نهاد، نام یا شناسه ملی الزامی است.')
+
+    def save(self, *args, **kwargs):
+        self.country_code = (self.country_code or '').strip().upper()
+        super().save(*args, **kwargs)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

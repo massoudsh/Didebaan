@@ -9,22 +9,82 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
+from django.utils.dateparse import parse_date
+from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import render
 
-from .models import Customer, Transaction, Alert, AlertComment, RiskScore, Rule, Report, AuditLog, Device, Merchant
+from .models import Customer, Transaction, Alert, AlertComment, RiskScore, Rule, Report, AuditLog, Device, Merchant, WatchlistEntry
 from .serializers import (
     CustomerSerializer, TransactionSerializer, AlertSerializer,
     RiskScoreSerializer, RuleSerializer, ReportSerializer, AuditLogSerializer,
     MonitorTransactionSerializer, ReviewAlertSerializer, GenerateReportSerializer,
-    DeviceSerializer, MerchantSerializer, AlertCommentSerializer, AssignAlertSerializer
+    DeviceSerializer, MerchantSerializer, AlertCommentSerializer, AssignAlertSerializer,
+    BulkAssignAlertsSerializer, BulkReviewAlertsSerializer, WatchlistEntrySerializer
 )
 from .services.transaction_monitor import get_transaction_monitor
 from .services.alert_generator import get_alert_generator
 from .services.report_generator import get_report_generator
 
 logger = logging.getLogger('aml')
+
+
+def _safe_cell(value):
+    """Neutralise spreadsheet formula injection in user-supplied text."""
+    text = '' if value is None else str(value)
+    if text and text[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + text
+    return text
+
+
+def tabular_response(headers, rows, export_format, sheet_title, filename_base):
+    """Render rows as a CSV (default) or XLSX download."""
+    if export_format == 'xlsx':
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment
+        except ImportError:
+            return Response({'error': 'openpyxl not installed'}, status=500)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = sheet_title
+
+        ws.append(headers)
+        header_fill = PatternFill('solid', fgColor='1e3a5f')
+        header_font = Font(bold=True, color='FFFFFF')
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+
+        for row in rows:
+            ws.append(row)
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 50)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename_base}.xlsx"'
+        return response
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
+    response.write('\ufeff')  # BOM for Excel UTF-8
+    writer = csv.writer(response)
+    writer.writerow(headers)
+    for row in rows:
+        writer.writerow(row)
+    return response
 
 
 def dashboard_view(request):
@@ -271,19 +331,13 @@ class AlertViewSet(viewsets.ModelViewSet):
         serializer = ReviewAlertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        alert_generator = get_alert_generator()
         reviewer = request.user.username if hasattr(request.user, 'username') else 'system'
-        
-        status_value = serializer.validated_data['status']
-        notes = serializer.validated_data['notes']
-        
-        if status_value == 'ESCALATED':
-            alert = alert_generator.escalate_alert(alert, reviewer, notes)
-        elif status_value == 'FALSE_POSITIVE':
-            alert = alert_generator.mark_false_positive(alert, reviewer, notes)
-        else:
-            alert = alert_generator.review_alert(alert, reviewer, status_value, notes)
-        
+
+        alert = self._apply_review(
+            alert, reviewer,
+            serializer.validated_data['status'], serializer.validated_data['notes'],
+        )
+
         return Response(AlertSerializer(alert).data)
 
     @action(detail=True, methods=['post'], url_path='assign')
@@ -400,54 +454,138 @@ class AlertViewSet(viewsets.ModelViewSet):
                 alert.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             ]
 
-        if export_format == 'xlsx':
-            try:
-                import openpyxl
-                from openpyxl.styles import Font, PatternFill, Alignment
-            except ImportError:
-                return Response({'error': 'openpyxl not installed'}, status=500)
+        return tabular_response(
+            headers, (row_for(alert) for alert in queryset),
+            export_format, 'Alerts', 'alerts_export',
+        )
 
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = 'Alerts'
+    @action(detail=False, methods=['get'], url_path='comments-export')
+    def comments_export(self, request):
+        """
+        Issue #46: Export the alert case-history (AlertComment) audit trail to
+        CSV or XLSX.
 
-            # Header row with styling
-            ws.append(headers)
-            header_fill = PatternFill('solid', fgColor='1e3a5f')
-            header_font = Font(bold=True, color='FFFFFF')
-            for cell in ws[1]:
-                cell.fill = header_fill
-                cell.font = header_font
-                cell.alignment = Alignment(horizontal='center')
+        Query params:
+            export_format=csv (default) | xlsx
+            alert_id=...        — only one alert's history
+            comment_type=COMMENT|ASSIGNMENT|STATUS_CHANGE
+            author=...
+            date_from=YYYY-MM-DD, date_to=YYYY-MM-DD (inclusive, on created_at)
+        """
+        export_format = request.query_params.get('export_format', 'csv').lower()
+        params = request.query_params
 
-            for alert in queryset:
-                ws.append(row_for(alert))
+        queryset = AlertComment.objects.select_related('alert', 'alert__customer')
+        if params.get('alert_id'):
+            queryset = queryset.filter(alert__alert_id=params['alert_id'])
+        if params.get('comment_type'):
+            queryset = queryset.filter(comment_type=params['comment_type'])
+        if params.get('author'):
+            queryset = queryset.filter(author=params['author'])
+        if params.get('date_from'):
+            date_from = parse_date(params['date_from'])
+            if not date_from:
+                return Response({'error': 'date_from must be YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if params.get('date_to'):
+            date_to = parse_date(params['date_to'])
+            if not date_to:
+                return Response({'error': 'date_to must be YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        queryset = queryset.order_by('-created_at')
 
-            # Auto-width columns
-            for col in ws.columns:
-                max_len = max(len(str(cell.value or '')) for cell in col)
-                ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 50)
+        headers = [
+            'Alert ID', 'Alert Status', 'Severity', 'Customer ID',
+            'Comment Type', 'Author', 'Comment', 'Created At',
+        ]
 
-            output = io.BytesIO()
-            wb.save(output)
-            output.seek(0)
+        def row_for(comment):
+            return [
+                comment.alert.alert_id,
+                comment.alert.status,
+                comment.alert.severity,
+                comment.alert.customer.customer_id,
+                comment.comment_type,
+                _safe_cell(comment.author),
+                _safe_cell(comment.comment),
+                comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ]
 
-            response = HttpResponse(
-                output.read(),
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            )
-            response['Content-Disposition'] = 'attachment; filename="alerts_export.xlsx"'
-            return response
+        return tabular_response(
+            headers, (row_for(c) for c in queryset),
+            export_format, 'Alert History', 'alert_comments_export',
+        )
 
-        else:  # CSV
-            response = HttpResponse(content_type='text/csv; charset=utf-8')
-            response['Content-Disposition'] = 'attachment; filename="alerts_export.csv"'
-            response.write('\ufeff')  # BOM for Excel UTF-8
-            writer = csv.writer(response)
-            writer.writerow(headers)
-            for alert in queryset:
-                writer.writerow(row_for(alert))
-            return response
+    def _resolve_alerts(self, alert_ids):
+        ids = list(dict.fromkeys(alert_ids))
+        found = {a.alert_id: a for a in Alert.objects.filter(alert_id__in=ids)}
+        missing = [i for i in ids if i not in found]
+        return [found[i] for i in ids if i in found], missing
+
+    @action(detail=False, methods=['post'], url_path='bulk-assign')
+    def bulk_assign(self, request):
+        """Issue #42: Assign (or unassign with assigned_to='') many alerts at once."""
+        serializer = BulkAssignAlertsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        alerts, missing = self._resolve_alerts(data['alert_ids'])
+        alert_generator = get_alert_generator()
+        assigned_by = request.user.username if hasattr(request.user, 'username') else 'system'
+
+        with db_transaction.atomic():
+            for alert in alerts:
+                alert_generator.assign_alert(
+                    alert, assigned_to=data['assigned_to'],
+                    assigned_by=assigned_by, notes=data.get('notes', ''),
+                )
+
+        return Response({
+            'updated': [a.alert_id for a in alerts],
+            'not_found': missing,
+        })
+
+    @action(detail=False, methods=['post'], url_path='bulk-review')
+    def bulk_review(self, request):
+        """Issue #42: Review many alerts with one status and note."""
+        serializer = BulkReviewAlertsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        alerts, missing = self._resolve_alerts(data['alert_ids'])
+        reviewer = request.user.username if hasattr(request.user, 'username') else 'system'
+
+        with db_transaction.atomic():
+            for alert in alerts:
+                self._apply_review(alert, reviewer, data['status'], data['notes'])
+
+        return Response({
+            'updated': [a.alert_id for a in alerts],
+            'not_found': missing,
+        })
+
+    @staticmethod
+    def _apply_review(alert, reviewer, status_value, notes):
+        alert_generator = get_alert_generator()
+        if status_value == 'ESCALATED':
+            return alert_generator.escalate_alert(alert, reviewer, notes)
+        if status_value == 'FALSE_POSITIVE':
+            return alert_generator.mark_false_positive(alert, reviewer, notes)
+        return alert_generator.review_alert(alert, reviewer, status_value, notes)
+
+
+class WatchlistEntryViewSet(viewsets.ModelViewSet):
+    """Issue #40: Manage sanctioned countries / watched entities."""
+    queryset = WatchlistEntry.objects.all()
+    serializer_class = WatchlistEntrySerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['entry_type', 'is_active', 'country_code']
+    search_fields = ['country_code', 'name', 'national_id', 'source_list']
+    ordering_fields = ['created_at', 'country_code', 'name']
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        serializer.save(added_by=user.username if hasattr(user, 'username') else 'system')
 
 
 class DeviceViewSet(viewsets.ModelViewSet):

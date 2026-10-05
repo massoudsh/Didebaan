@@ -22,3 +22,6 @@
 - `backend/aml/rules/aml_rules.py:19` — `class RuleEngine`
 - `backend/aml/rules/aml_rules.py:327` — `class ExtendedRuleEngine`
 - `backend/aml/rules/aml_rules.py:813` — `get_rule_engine()` نهایی (override دوم)
+
+## Watchlist (Roadmap #40)
+قانون `SANCTIONED` کشورها/اشخاص را از `WatchlistEntry` فعال می‌خواند (مدیریت از Admin یا `/api/watchlist/`)؛ مایگریشن 0007 کشورهای KP, SD, SY, SO, LY را seed می‌کند.

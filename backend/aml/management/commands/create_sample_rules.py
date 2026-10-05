@@ -206,9 +206,7 @@ class Command(BaseCommand):
                 'description': 'تشخیص انتقال وجه به کشورهای تحت تحریم سازمان ملل/FATF',
                 'rule_type': 'SANCTIONED',
                 'status': 'ACTIVE',
-                'configuration': {
-                    'sanctioned_countries': ['KP', 'SD', 'SY', 'SO', 'LY'],
-                },
+                'configuration': {},  # countries/entities come from the WatchlistEntry list
                 'priority': 1,
                 'risk_weight': 3.0,  # Highest weight
             }

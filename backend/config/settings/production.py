@@ -26,3 +26,8 @@ if config('USE_HTTPS', default=False, cast=bool):
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
     'rest_framework.renderers.JSONRenderer',
 ]
+
+# Structured JSON logging for log aggregation
+LOGGING['formatters']['json'] = {'()': 'config.logging.JsonFormatter'}
+for _handler in LOGGING['handlers'].values():
+    _handler['formatter'] = 'json'

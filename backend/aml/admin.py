@@ -180,7 +180,7 @@ aml_admin_site.register(Report, ReportAdmin)
 
 # ─── New models for issues #30, #31, #32, #33, #39 ────────────────────────────
 
-from .models import RuleVersion, ThresholdConfig, ReportComment, Notification, AlertComment
+from .models import RuleVersion, ThresholdConfig, ReportComment, Notification, AlertComment, WatchlistEntry
 
 
 class ThresholdConfigAdmin(admin.ModelAdmin):
@@ -232,7 +232,16 @@ class AlertCommentAdmin(admin.ModelAdmin):
     list_per_page = 25
 
 
+class WatchlistEntryAdmin(admin.ModelAdmin):
+    list_display = ('entry_type', 'country_code', 'name', 'national_id', 'source_list', 'is_active', 'added_by')
+    list_filter = ('entry_type', 'is_active', 'source_list')
+    search_fields = ('country_code', 'name', 'national_id')
+    readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 25
+
+
 aml_admin_site.register(ThresholdConfig, ThresholdConfigAdmin)
+aml_admin_site.register(WatchlistEntry, WatchlistEntryAdmin)
 aml_admin_site.register(RuleVersion, RuleVersionAdmin)
 aml_admin_site.register(ReportComment, ReportCommentAdmin)
 aml_admin_site.register(Notification, NotificationAdmin)

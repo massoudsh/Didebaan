@@ -2,7 +2,7 @@
 DRF Serializers for AML models
 """
 from rest_framework import serializers
-from .models import Customer, Transaction, Alert, AlertComment, RiskScore, Rule, Report, AuditLog, Device, Merchant
+from .models import Customer, Transaction, Alert, AlertComment, RiskScore, Rule, Report, AuditLog, Device, Merchant, WatchlistEntry
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -164,6 +164,56 @@ class AssignAlertSerializer(serializers.Serializer):
     """Serializer for alert assignment endpoint (Issue #39: case management)"""
     assigned_to = serializers.CharField(required=True, allow_blank=True, max_length=100)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class BulkAssignAlertsSerializer(serializers.Serializer):
+    """Bulk assignment of alerts (Issue #42)"""
+    alert_ids = serializers.ListField(
+        child=serializers.CharField(max_length=100), allow_empty=False, max_length=500
+    )
+    assigned_to = serializers.CharField(required=True, allow_blank=True, max_length=100)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class BulkReviewAlertsSerializer(serializers.Serializer):
+    """Bulk review of alerts (Issue #42)"""
+    alert_ids = serializers.ListField(
+        child=serializers.CharField(max_length=100), allow_empty=False, max_length=500
+    )
+    status = serializers.ChoiceField(
+        choices=['RESOLVED', 'FALSE_POSITIVE', 'ESCALATED', 'UNDER_REVIEW']
+    )
+    notes = serializers.CharField(required=True, allow_blank=True)
+
+
+class WatchlistEntrySerializer(serializers.ModelSerializer):
+    """Serializer for WatchlistEntry (Issue #40)"""
+
+    class Meta:
+        model = WatchlistEntry
+        fields = [
+            'id', 'entry_type', 'country_code', 'name', 'national_id',
+            'source_list', 'notes', 'is_active', 'added_by',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'added_by', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        data = {}
+        if self.instance:
+            data = {f: getattr(self.instance, f) for f in
+                    ('entry_type', 'country_code', 'name', 'national_id')}
+        data.update(attrs)
+        instance = WatchlistEntry(**data)
+        try:
+            instance.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, 'error_dict') else exc.messages)
+        for field in ('country_code', 'name', 'national_id'):
+            if field in attrs or self.instance is None:
+                attrs[field] = getattr(instance, field)
+        return attrs
 
 
 class GenerateReportSerializer(serializers.Serializer):

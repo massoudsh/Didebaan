@@ -67,12 +67,19 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 ### Backlog — proposed future issues (not started)
 
 - **#40 Watchlist / sanctioned-entity model:** Replace the hardcoded sanctioned-country list in `aml_rules.py` with a `WatchlistEntry` model (country, entity name, national ID, source list) manageable via Admin/API, so compliance can update it without a deploy.
+  - **Status:** Done — `WatchlistEntry` model + `/api/watchlist/` + Admin; SANCTIONED rule reads active entries (migrations 0006/0007 seed UN/FATF countries).
 - **#41 SLA & escalation timers for assigned alerts:** Track `assigned_at` age; a Celery beat task auto-escalates or notifies when an assigned alert has been open past a configurable SLA (e.g. `ThresholdConfig`).
+  - **Status:** Done — `escalate_overdue_alerts` Celery task (every 15 min) escalates assigned alerts past SLA (`ThresholdConfig` `ALERT_SLA_HOURS`, default `AML_ALERT_SLA_HOURS`=24), logs to case history and notifies.
 - **#42 Bulk alert actions:** `POST /api/alerts/bulk-assign/` and `bulk-review/` to act on a list of `alert_id`s at once (complements the existing bulk export).
+  - **Status:** Done — `POST /api/alerts/bulk-assign/` and `bulk-review/`.
 - **#43 Frontend dashboard (RTL/Persian):** Standalone React/Vue app consuming the existing REST API — alert queue with assignment/case-history UI, risk dashboards, RTL layout (Phase 3 items #17–#21, not yet built).
+  - **Status:** Partial — the server-rendered dashboard is now responsive RTL/Persian; the standalone React/Vue app with alert-queue/case-history UI is still open.
 - **#44 Structured (JSON) logging in production:** Replace default logging config with JSON formatter for log aggregators (Phase 5 item).
+  - **Status:** Done — `config.logging.JsonFormatter`, enabled in production settings.
 - **#45 DB indexing/query-plan pass:** Review `Transaction`/`Alert`/`AuditLog` query patterns under load and add missing composite indexes (Phase 5 item).
+  - **Status:** Done — redundant single-column indexes replaced by composite query-oriented indexes (migration 0006).
 - **#46 Case reassignment audit report:** Export endpoint (CSV/XLSX) for `AlertComment` history, mirroring the existing alert export, for regulator/audit reviews.
+  - **Status:** Done — `GET /api/alerts/comments-export/` (CSV/XLSX; filters: alert_id, comment_type, author, date_from/date_to).
 
 ---
 
