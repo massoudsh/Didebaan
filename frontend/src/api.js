@@ -1,6 +1,7 @@
 const BASE = import.meta.env.VITE_API_BASE || '';
 const TOKEN_KEY = 'didebaan.token';
 const USER_KEY = 'didebaan.user';
+const ROLES_KEY = 'didebaan.roles';
 
 let onUnauthorized = () => {};
 
@@ -11,13 +12,18 @@ export const auth = {
   get user() {
     return localStorage.getItem(USER_KEY) || '';
   },
-  set(token, user) {
+  get roles() {
+    return JSON.parse(localStorage.getItem(ROLES_KEY) || '[]');
+  },
+  set(token, profile) {
     localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, user);
+    localStorage.setItem(USER_KEY, profile.username);
+    localStorage.setItem(ROLES_KEY, JSON.stringify(profile.roles || []));
   },
   clear() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(ROLES_KEY);
   },
   onUnauthorized(fn) {
     onUnauthorized = fn;
@@ -115,8 +121,9 @@ export async function download(path, params, fallbackName) {
 
 export async function login(username, password) {
   const data = await request('/api/auth/token/', { method: 'POST', body: { username, password } });
-  auth.set(data.token, username);
-  return data;
+  const profile = await request('/api/auth/me/');
+  auth.set(data.token, profile);
+  return profile;
 }
 
 export const api = {

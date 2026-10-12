@@ -6,3 +6,4 @@
 ## [2026-09-24] update | بازطراحی داشبورد عملیاتی فارسی و RTL با توکن‌های تم، نمودارهای ریسک، عددگذاری فارسی و ناوبری واکنش‌گرا در `backend/aml/templates/aml/dashboard.html`.
 ## [2026-10-05] update | Roadmap #40–#46: مدل WatchlistEntry و API/Admin (قانون SANCTIONED از دیتابیس می‌خواند)، SLA خودکار هشدارهای ارجاع‌شده (Celery هر ۱۵ دقیقه)، bulk-assign/bulk-review، خروجی CSV/XLSX تاریخچه یادداشت‌ها (`comments-export`)، لاگ JSON در production و ایندکس‌های ترکیبی (مایگریشن 0006/0007). #43 (SPA مستقل) هنوز باز است.
 ## [2026-10-05] update | Roadmap #43: SPA مستقل `frontend/` (React+Vite، RTL فارسی) با داشبورد ریسک، صف هشدارها، عملیات گروهی و کشوی تاریخچهٔ پرونده؛ فیلترهای `assigned_to` و `unassigned` به `/api/alerts/` اضافه شد.
+## [2026-10-12] update | دسترسی نقش‌محور API اضافه شد: گروه‌های AUDITOR/INVESTIGATOR/SUPERVISOR/COMPLIANCE_OFFICER، endpoint هویت `/api/auth/me/` و محدودیت بررسی پرونده برای بررسی‌کنندهٔ ارجاع‌شده.

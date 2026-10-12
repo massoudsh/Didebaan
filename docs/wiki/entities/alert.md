@@ -15,6 +15,7 @@
 - `AlertComment` (همان فایل `models.py`) — هر تغییر status یا assignment به‌صورت خودکار یک رکورد در این مدل ثبت می‌کند.
 
 ## قراردادها / Edge cases
+- دسترسی API بر اساس گروه‌های [[concepts/role-based-access]] کنترل می‌شود: ممیز فقط خواندنی است؛ بررسی‌کننده فقط پروندهٔ ارجاع‌شده به خود را بازبینی یا یادداشت‌گذاری می‌کند؛ سرپرست عملیات گروهی و ارجاع دارد؛ افسر انطباق مدیریت داده‌های حساس را انجام می‌دهد.
 - `alert_id` یکتا و indexed؛ ایندکس ترکیبی `(status, severity)` برای فیلترهای داشبورد.
 - خروجی export (CSV/XLSX) از `AlertViewSet.export` — پارامتر کوئری `export_format` (نه `format`، چون `format` رزرو DRF برای content negotiation است).
 - `assigned_to=''` یعنی بدون بررسی‌کننده (unassigned)؛ اکشن `assign` با ورودی خالی، unassign می‌کند و `assigned_at` را `None` می‌کند.

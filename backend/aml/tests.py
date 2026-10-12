@@ -909,6 +909,7 @@ class BulkExportTest(TestCase):
     def setUp(self):
         from django.contrib.auth.models import User
         self.user = User.objects.create_user('exporter', password='testpass123')
+        self.user.groups.add(Group.objects.get(name='AUDITOR'))
         self.client = Client()
         self.client.login(username='exporter', password='testpass123')
 
@@ -933,6 +934,7 @@ import json
 import logging
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 
 from .models import ThresholdConfig, WatchlistEntry
@@ -941,6 +943,7 @@ from .models import ThresholdConfig, WatchlistEntry
 class RoadmapBase(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user('officer', password='pw')
+        self.user.groups.add(Group.objects.get(name='COMPLIANCE_OFFICER'))
         self.api = APIClient()
         self.api.force_authenticate(self.user)
         self.customer = Customer.objects.create(
@@ -1128,3 +1131,54 @@ class AlertQueueFilterTest(RoadmapBase):
 
         r = self.api.get('/api/alerts/', {'unassigned': '1'})
         self.assertEqual([a['alert_id'] for a in r.json()['results']], [a2.alert_id])
+
+
+class RoleAccessTest(RoadmapBase):
+    def user_with_role(self, username, role):
+        user = get_user_model().objects.create_user(username, password='pw')
+        user.groups.add(Group.objects.get(name=role))
+        client = APIClient()
+        client.force_authenticate(user)
+        return user, client
+
+    def test_current_user_lists_operational_roles(self):
+        response = self.api.get('/api/auth/me/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['roles'], ['COMPLIANCE_OFFICER'])
+
+    def test_auditor_can_read_but_cannot_modify_alert(self):
+        alert = self.make_alert()
+        _, auditor = self.user_with_role('auditor', 'AUDITOR')
+        self.assertEqual(auditor.get('/api/alerts/').status_code, 200)
+        response = auditor.post(
+            f'/api/alerts/{alert.alert_id}/comments/', {'comment': 'x'}, format='json'
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_investigator_may_review_only_their_assigned_alert(self):
+        alert = self.make_alert()
+        investigator, client = self.user_with_role('investigator', 'INVESTIGATOR')
+        denied = client.post(
+            f'/api/alerts/{alert.alert_id}/review/',
+            {'status': 'UNDER_REVIEW', 'notes': ''}, format='json'
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        self.generator.assign_alert(alert, investigator.username, 'supervisor')
+        allowed = client.post(
+            f'/api/alerts/{alert.alert_id}/review/',
+            {'status': 'UNDER_REVIEW', 'notes': ''}, format='json'
+        )
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_supervisor_can_bulk_assign_but_not_manage_watchlist(self):
+        alert = self.make_alert()
+        _, supervisor = self.user_with_role('supervisor', 'SUPERVISOR')
+        response = supervisor.post(
+            '/api/alerts/bulk-assign/',
+            {'alert_ids': [alert.alert_id], 'assigned_to': 'investigator'}, format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(supervisor.post('/api/watchlist/', {
+            'entry_type': 'COUNTRY', 'country_code': 'IR'
+        }, format='json').status_code, 403)

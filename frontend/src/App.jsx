@@ -14,7 +14,9 @@ function readTheme() {
 }
 
 export default function App() {
-  const [user, setUser] = useState(auth.token ? auth.user : null);
+  const [user, setUser] = useState(
+    auth.token ? { username: auth.user, roles: auth.roles } : null,
+  );
   const [tab, setTab] = useState('alerts');
   const [theme, setTheme] = useState(readTheme);
 
@@ -60,12 +62,12 @@ export default function App() {
           <button className="btn ghost" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
             {theme === 'light' ? 'حالت تیره' : 'حالت روشن'}
           </button>
-          <span className="user-chip">{user}</span>
+          <span className="user-chip" dir="ltr">{user.username}</span>
           <button className="btn ghost" onClick={logout}>خروج</button>
         </div>
       </header>
       <main className="content">
-        {tab === 'dashboard' ? <Dashboard onOpenQueue={() => setTab('alerts')} /> : <AlertQueue currentUser={user} />}
+        {tab === 'dashboard' ? <Dashboard onOpenQueue={() => setTab('alerts')} /> : <AlertQueue currentUser={user.username} />}
       </main>
     </div>
   );

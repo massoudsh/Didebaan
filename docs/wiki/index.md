@@ -19,9 +19,10 @@
 - [[entities/alert-generator]] — ساخت/بررسی/escalate هشدار
 - [[entities/report-generator]] — تولید گزارش SAR/CTR
 
-## Concepts (۲ صفحه)
+## Concepts (۳ صفحه)
 - [[concepts/rule-evaluation-flow]] — مسیر کامل از ثبت تراکنش تا هشدار
 - [[concepts/explainable-ai]] — ساختار فیلد `explanation` روی Alert
+- [[concepts/role-based-access]] — نقش‌های عملیاتی و مجوزهای API
 
 ## به‌روزرسانی‌ها
 - [[log]] — تاریخچه append-only تغییرات ویکی

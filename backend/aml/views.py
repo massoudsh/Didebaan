@@ -26,6 +26,7 @@ from .serializers import (
 from .services.transaction_monitor import get_transaction_monitor
 from .services.alert_generator import get_alert_generator
 from .services.report_generator import get_report_generator
+from .permissions import AlertPermission, CompliancePermission, ReadOnlyRolePermission, user_roles
 
 logger = logging.getLogger('aml')
 
@@ -161,7 +162,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     """ViewSet for Customer model"""
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ReadOnlyRolePermission]
     lookup_field = 'customer_id'
     filterset_fields = ['current_risk_level', 'customer_type', 'is_active', 'country']
     search_fields = ['customer_id', 'first_name', 'last_name', 'email', 'national_id']
@@ -222,7 +223,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     """ViewSet for Transaction model"""
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ReadOnlyRolePermission]
     lookup_field = 'transaction_id'
     filterset_fields = ['transaction_type', 'status', 'is_suspicious', 'currency']
     search_fields = ['transaction_id', 'sender_account', 'receiver_account', 'receiver_name']
@@ -302,7 +303,7 @@ class AlertViewSet(viewsets.ModelViewSet):
     """ViewSet for Alert model"""
     queryset = Alert.objects.all()
     serializer_class = AlertSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AlertPermission]
     lookup_field = 'alert_id'
     filterset_fields = ['status', 'severity', 'assigned_to']
     search_fields = ['alert_id', 'title', 'description']
@@ -581,7 +582,7 @@ class WatchlistEntryViewSet(viewsets.ModelViewSet):
     """Issue #40: Manage sanctioned countries / watched entities."""
     queryset = WatchlistEntry.objects.all()
     serializer_class = WatchlistEntrySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [CompliancePermission]
     filterset_fields = ['entry_type', 'is_active', 'country_code']
     search_fields = ['country_code', 'name', 'national_id', 'source_list']
     ordering_fields = ['created_at', 'country_code', 'name']
@@ -595,7 +596,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
     """ViewSet for Device model (fraud/abuse device fingerprinting)"""
     queryset = Device.objects.all()
     serializer_class = DeviceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ReadOnlyRolePermission]
     lookup_field = 'device_id'
     filterset_fields = ['device_type', 'is_emulator', 'is_rooted']
     search_fields = ['device_id', 'fingerprint_hash', 'ip_address']
@@ -617,7 +618,7 @@ class MerchantViewSet(viewsets.ModelViewSet):
     """ViewSet for Merchant model (fraud/abuse merchant risk)"""
     queryset = Merchant.objects.all()
     serializer_class = MerchantSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ReadOnlyRolePermission]
     lookup_field = 'merchant_id'
     filterset_fields = ['category', 'is_active']
     search_fields = ['merchant_id', 'name']
@@ -629,7 +630,7 @@ class RiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for RiskScore model (read-only)"""
     queryset = RiskScore.objects.all()
     serializer_class = RiskScoreSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ReadOnlyRolePermission]
     filterset_fields = ['score_type']
     ordering_fields = ['calculated_at', 'score']
     ordering = ['-calculated_at']
@@ -654,7 +655,7 @@ class RuleViewSet(viewsets.ModelViewSet):
     """ViewSet for Rule model"""
     queryset = Rule.objects.all()
     serializer_class = RuleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [CompliancePermission]
     filterset_fields = ['status', 'rule_type']
     search_fields = ['name', 'description']
     ordering_fields = ['priority', 'created_at', 'risk_weight']
@@ -683,7 +684,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     """ViewSet for Report model"""
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [CompliancePermission]
     lookup_field = 'report_id'
     filterset_fields = ['report_type', 'status', 'file_format']
     search_fields = ['report_id', 'title', 'regulatory_body']
@@ -835,7 +836,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only list of audit log entries (compliance API)."""
     queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [CompliancePermission]
     filterset_fields = ['method', 'path', 'user', 'status_code']
     ordering_fields = ['timestamp', 'path', 'status_code']
     ordering = ['-timestamp']
@@ -845,6 +846,18 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 from rest_framework.views import APIView
 from django.db import connection
+
+
+class CurrentUserView(APIView):
+    """Return the authenticated user and operational roles for the frontend."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            'username': request.user.get_username(),
+            'roles': sorted(user_roles(request.user)),
+            'is_superuser': request.user.is_superuser,
+        })
 
 
 class HealthView(APIView):

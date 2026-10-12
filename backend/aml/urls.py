@@ -18,6 +18,7 @@ router.register(r'merchants', views.MerchantViewSet, basename='merchant')
 router.register(r'watchlist', views.WatchlistEntryViewSet, basename='watchlist')
 
 urlpatterns = [
+    path('auth/me/', views.CurrentUserView.as_view()),
     path('health/', views.HealthView.as_view()),
     path('ready/', views.ReadyView.as_view()),
     path('', include(router.urls)),
