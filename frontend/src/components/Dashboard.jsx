@@ -48,10 +48,18 @@ export default function Dashboard({ onOpenQueue }) {
 
   return (
     <section>
+      <div className="hero-banner">
+        <div>
+          <span className="eyebrow accent">اتاق عملیات · پایش لحظه‌ای</span>
+          <h2>از تراکنش مشکوک تا تصمیم قابل دفاع</h2>
+          <p>یک نمای واحد برای کشف تقلب، انطباق ایرانی و رسیدگی سریع به پرونده‌ها.</p>
+        </div>
+        <button className="btn primary" onClick={onOpenQueue}>باز کردن صف عملیات</button>
+      </div>
       <div className="page-head">
         <div>
-          <h2>داشبورد ریسک</h2>
-          <p className="muted">خلاصهٔ هشدارها و مشتریان بر اساس داده‌های زنده</p>
+          <h2>تصویر ریسک</h2>
+          <p className="muted">داده‌های زندهٔ پایش تراکنش و وضعیت پرونده‌ها</p>
         </div>
         <label className="inline">
           بازه
@@ -61,6 +69,14 @@ export default function Dashboard({ onOpenQueue }) {
             <option value={90}>۹۰ روز اخیر</option>
           </select>
         </label>
+      </div>
+
+      <div className="feature-strip">
+        <div><b>۰۱</b><span>پایش زنده</span><small>تصمیم پیش از تسویه</small></div>
+        <div><b>۰۲</b><span>هوش رفتاری</span><small>الگوی مشتری و شبکه</small></div>
+        <div><b>۰۳</b><span>انطباق ایرانی</span><small>CTR، PEP و watchlist</small></div>
+        <div><b>۰۴</b><span>پروندهٔ قابل دفاع</span><small>دلیل، اقدام و تاریخچه</small></div>
+        <div><b>۰۵</b><span>SLA عملیاتی</span><small>اولویت‌بندی بر اساس زمان</small></div>
       </div>
 
       <div className="stat-grid">
@@ -82,6 +98,13 @@ export default function Dashboard({ onOpenQueue }) {
         <div className="card">
           <h3>سطح ریسک مشتریان</h3>
           <Bars data={customers} labels={SEVERITY_LABELS} colorPrefix="sev" />
+        </div>
+        <div className="card compliance-card">
+          <div className="card-kicker">انطباق برای بازار ایران</div>
+          <h3>ردپای تصمیم آمادهٔ ممیزی</h3>
+          <p className="muted">هر هشدار با علت، قانون فعال، بررسی‌کننده و تاریخچهٔ تغییرات نگهداری می‌شود.</p>
+          <div className="compliance-tags"><span>ریال IRR</span><span>CTR</span><span>PEP</span><span>FATF</span></div>
+          <button className="btn" onClick={onOpenQueue}>مشاهدهٔ پرونده‌ها</button>
         </div>
         <div className="card">
           <h3>هشدارهای باز بر اساس شدت</h3>

@@ -12,7 +12,11 @@ export function Badge({ kind, value, labels }) {
   return <span className={`badge ${kind}-${value}`}>{labels[value] || value}</span>;
 }
 
-export default function AlertQueue({ currentUser }) {
+export default function AlertQueue({ currentUser, roles = [] }) {
+  const canAssign = roles.includes('SUPERVISOR') || roles.includes('COMPLIANCE_OFFICER');
+  const canReviewAny = roles.includes('SUPERVISOR') || roles.includes('COMPLIANCE_OFFICER');
+  const canReviewOwn = roles.includes('INVESTIGATOR');
+  const canBulk = canAssign || canReviewAny;
   const [filters, setFilters] = useState({ status: '', severity: '', assignee: '', ordering: '-created_at' });
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -62,6 +66,11 @@ export default function AlertQueue({ currentUser }) {
   }, [filters, search, page, reloadKey]);
 
   const reload = () => setReloadKey((key) => key + 1);
+
+  useEffect(() => {
+    const timer = setInterval(reload, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   function changeFilter(name, value) {
     setFilters((current) => ({ ...current, [name]: value }));
@@ -135,9 +144,10 @@ export default function AlertQueue({ currentUser }) {
       <div className="page-head">
         <div>
           <h2>صف هشدارها</h2>
-          <p className="muted">{fmtNumber(data.count)} هشدار مطابق فیلترها</p>
+          <p className="muted"><span className="live-label"><span className="pulse-dot" /> زنده</span> · {fmtNumber(data.count)} هشدار مطابق فیلترها · تازه‌سازی خودکار هر ۳۰ ثانیه</p>
         </div>
         <div className="row-gap">
+          <button className="btn" onClick={reload}>تازه‌سازی</button>
           <button className="btn" onClick={() => exportData('alerts')}>خروجی هشدارها (CSV)</button>
           <button className="btn" onClick={() => exportData('comments')}>خروجی تاریخچهٔ پرونده‌ها (CSV)</button>
         </div>
@@ -184,7 +194,7 @@ export default function AlertQueue({ currentUser }) {
       {notice && <p className="notice" role="status">{notice}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
-      {selected.size > 0 && (
+      {canBulk && selected.size > 0 && (
         <div className="bulk card" role="region" aria-label="عملیات گروهی">
           <strong>{fmtNumber(selected.size)} هشدار انتخاب شده</strong>
           <div className="bulk-forms">
@@ -221,7 +231,7 @@ export default function AlertQueue({ currentUser }) {
         <table>
           <thead>
             <tr>
-              <th className="narrow"><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="انتخاب همهٔ ردیف‌های صفحه" /></th>
+              <th className="narrow">{canBulk && <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="انتخاب همهٔ ردیف‌های صفحه" />}</th>
               <th>شناسه</th>
               <th>عنوان</th>
               <th>مشتری</th>
@@ -240,12 +250,12 @@ export default function AlertQueue({ currentUser }) {
                 onClick={() => setOpenAlert(alert)}
               >
                 <td className="narrow" onClick={(e) => e.stopPropagation()}>
-                  <input
+                  {canBulk && <input
                     type="checkbox"
                     checked={selected.has(alert.alert_id)}
                     onChange={() => toggle(alert.alert_id)}
                     aria-label={`انتخاب ${alert.alert_id}`}
-                  />
+                  />}
                 </td>
                 <td dir="ltr" className="mono">
                   <button className="link" onClick={() => setOpenAlert(alert)}>{alert.alert_id}</button>
@@ -285,6 +295,9 @@ export default function AlertQueue({ currentUser }) {
           key={openAlert.alert_id}
           alert={openAlert}
           currentUser={currentUser}
+          roles={roles}
+          canAssign={canAssign}
+          canReview={canReviewAny || canReviewOwn}
           onClose={() => setOpenAlert(null)}
           onChanged={handleChanged}
         />

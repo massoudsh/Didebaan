@@ -6,7 +6,7 @@ import {
 } from '../format.js';
 import { Badge } from './AlertQueue.jsx';
 
-export default function AlertDetail({ alert, currentUser, onClose, onChanged }) {
+export default function AlertDetail({ alert, currentUser, canAssign, canReview, onClose, onChanged }) {
   const id = alert.alert_id;
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -133,7 +133,7 @@ export default function AlertDetail({ alert, currentUser, onClose, onChanged }) 
             </section>
           )}
 
-          <section className="block-section">
+          {canAssign && <section className="block-section">
             <h3>ارجاع</h3>
             <form className="stack" onSubmit={submitAssign}>
               <div className="row-gap">
@@ -150,9 +150,9 @@ export default function AlertDetail({ alert, currentUser, onClose, onChanged }) 
               <input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="توضیح ارجاع (اختیاری)" aria-label="توضیح ارجاع" />
               <button className="btn primary" disabled={busy}>ثبت ارجاع</button>
             </form>
-          </section>
+          </section>}
 
-          <section className="block-section">
+          {canReview && <section className="block-section">
             <h3>بازبینی و تصمیم</h3>
             <form className="stack" onSubmit={submitReview}>
               <select value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value)} aria-label="وضعیت جدید">
@@ -161,17 +161,17 @@ export default function AlertDetail({ alert, currentUser, onClose, onChanged }) 
               <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="یادداشت بازبینی" rows={2} aria-label="یادداشت بازبینی" />
               <button className="btn primary" disabled={busy}>ثبت تصمیم</button>
             </form>
-          </section>
+          </section>}
 
           <section className="block-section">
             <div className="section-head">
               <h3>تاریخچهٔ پرونده</h3>
               <button className="btn" onClick={exportHistory} disabled={busy}>خروجی CSV</button>
             </div>
-            <form className="stack" onSubmit={submitComment}>
+            {canReview && <form className="stack" onSubmit={submitComment}>
               <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="یادداشت تازهٔ بررسی…" rows={2} aria-label="یادداشت تازه" />
               <button className="btn" disabled={busy || !newComment.trim()}>افزودن یادداشت</button>
-            </form>
+            </form>}
             {loadingComments ? (
               <p className="muted">در حال بارگذاری…</p>
             ) : comments.length === 0 ? (
