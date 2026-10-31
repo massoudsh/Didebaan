@@ -15,7 +15,8 @@ flowchart LR
 
 ## What works today
 
-- **Operations:** searchable alert queue, assignment, bulk review, case history, CSV/XLSX exports, light/dark RTL interface.
+- **Operations:** command-center dashboard, searchable alert queue, case inbox with lifecycle tracking, assignment, bulk review, case history, CSV/XLSX exports, light/dark RTL interface.
+- **Console:** glass surfaces built on design tokens, global search across alerts/customers/devices/merchants, entity risk profiles, plain-language rule transparency, keyboard navigation and non-color severity cues, masking of national IDs and emails for non-compliance roles, confirmation before consequential decisions.
 - **Risk signals:** amount/velocity/behavioral rules, shared devices, merchant abuse, BNPL signals, PEP and managed watchlists.
 - **Investigation tools:** rule simulation, customer relationship graphs, Persian-name screening, SLA deadlines, JSON evidence bundles.
 - **Backend:** token authentication, role permissions, audit trail, Celery monitoring/escalation, configurable thresholds and rule versions.
@@ -49,11 +50,14 @@ Sign in with the superuser you created. **There is no default username or passwo
 
 `seed_demo` creates three fictional customers, three monitored transactions, a shared device/merchant, a demo rule and a fictional watchlist entry. Re-running it preserves existing demo records; it refuses to run with `DEBUG=False`. Use an isolated development database.
 
-1. **صف عملیات:** open a demo alert, inspect its reasons, assign it to yourself and add a note.
-2. **تحلیل و انطباق → شبکهٔ ارتباطات:** enter `DEMO-C1` to see shared infrastructure.
-3. **غربالگری فارسی:** search `شرکت نمونه آزمایشی` against the fictional demo watchlist.
-4. **آزمایش قوانین:** choose `Demo amount threshold`, change `amount_threshold`, and compare matches without activating a rule.
-5. **بستهٔ شواهد:** download a case bundle from the alert drawer. Assign an alert to make it appear in the SLA dashboard.
+1. **مرکز فرماندهی:** click a KPI tile to jump into the queue with that filter applied.
+2. **صف عملیات:** open a demo alert, inspect its reasons, assign it to yourself and add a note; final outcomes ask for a reason and a confirmation.
+3. **کارتابل پرونده‌ها:** switch between needs-action, in-review, unowned and closed queues and open a case to see its stage timeline.
+4. **قوانین و شفافیت:** read each rule type in plain language; a compliance officer can preview parameter changes before confirming.
+5. **تحلیل و انطباق → شبکهٔ ارتباطات:** enter `DEMO-C1` to see shared infrastructure.
+6. **غربالگری فارسی:** search `شرکت نمونه آزمایشی` against the fictional demo watchlist.
+7. **آزمایش قوانین:** choose `Demo amount threshold`, change `amount_threshold`, and compare matches without activating a rule.
+8. **بستهٔ شواهد:** download a case bundle from the alert drawer. Assign an alert to make it appear in the SLA dashboard.
 
 ## Roles
 
@@ -112,7 +116,7 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-Frontend tests use a non-browser React renderer; they do not validate visual layout. Backend tests exercise the task pipeline locally and mock queue dispatch; a live Redis/worker deployment needs separate verification.
+Frontend tests use a non-browser React renderer; they do not validate visual layout, color contrast or motion, so check those in a browser before release. `npm --prefix frontend run build` is the production bundle check. Backend tests exercise the task pipeline locally and mock queue dispatch; a live Redis/worker deployment needs separate verification.
 
 ## Limits and deployment notes
 

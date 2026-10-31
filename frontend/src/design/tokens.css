@@ -1,0 +1,159 @@
+:root {
+  color-scheme: light;
+
+  --color-bg: #f2f6fb;
+  --color-bg-glow-a: #d8f0ec;
+  --color-bg-glow-b: #e6edfa;
+  --surface-subtle: rgb(255 255 255 / 52%);
+  --surface-medium: rgb(255 255 255 / 74%);
+  --surface-elevated: rgb(255 255 255 / 94%);
+  --surface-solid: #fff;
+  --surface-soft: #f5f8fc;
+  --border-subtle: rgb(20 33 61 / 8%);
+  --border: #d5dfec;
+  --border-strong: rgb(19 111 99 / 45%);
+
+  --text: #14213d;
+  --muted: #5a6a82;
+  --primary: #0f6b5f;
+  --primary-strong: #07524a;
+  --on-primary: #fff;
+  --primary-soft: #dcf2ee;
+  --focus-ring: rgb(15 107 95 / 40%);
+
+  --danger: #a3241a;
+  --danger-soft: #fde8e6;
+  --success: #12683a;
+  --success-soft: #e3f5e9;
+  --warning: #8a4a05;
+  --warning-soft: #fdf0dc;
+  --info: #1d4f91;
+
+  --sev-low: #1d4f91;
+  --sev-low-soft: #e3edfb;
+  --sev-medium: #8a4a05;
+  --sev-medium-soft: #fdf0dc;
+  --sev-high: #a63a08;
+  --sev-high-soft: #fde9df;
+  --sev-critical: #a01b1b;
+  --sev-critical-soft: #fbe4e4;
+  --st-open: #1d4f91;
+  --st-open-soft: #e3edfb;
+  --st-under-review: #8a4a05;
+  --st-under-review-soft: #fdf0dc;
+  --st-resolved: #12683a;
+  --st-resolved-soft: #e3f5e9;
+  --st-false-positive: #4b5a6f;
+  --st-false-positive-soft: #eaeef4;
+  --st-escalated: #a01b1b;
+  --st-escalated-soft: #fbe4e4;
+
+  --blur-subtle: 8px;
+  --blur-medium: 16px;
+  --blur-elevated: 28px;
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --shadow-sm: 0 2px 8px rgb(15 23 42 / 6%);
+  --shadow-md: 0 10px 28px rgb(15 23 42 / 8%);
+  --shadow-lg: 0 24px 60px rgb(15 23 42 / 18%);
+  --ring-border: inset 0 1px 0 rgb(255 255 255 / 65%);
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 300ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --z-sticky: 20;
+  --z-drawer: 40;
+  --z-popover: 50;
+  --z-toast: 60;
+
+  --font-ui: Vazirmatn, 'Vazirmatn Local', Tahoma, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --text-xs: .72rem;
+  --text-sm: .8rem;
+  --text-base: .875rem;
+  --text-lg: 1.1rem;
+  --text-xl: 1.35rem;
+  --text-2xl: clamp(1.35rem, 2vw, 1.75rem);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #0b1220;
+  --color-bg-glow-a: #0f2f31;
+  --color-bg-glow-b: #14203b;
+  --surface-subtle: rgb(26 36 54 / 55%);
+  --surface-medium: rgb(26 36 54 / 74%);
+  --surface-elevated: rgb(30 41 60 / 94%);
+  --surface-solid: #1a2436;
+  --surface-soft: #223049;
+  --border-subtle: rgb(255 255 255 / 8%);
+  --border: #33425b;
+  --border-strong: rgb(94 216 197 / 50%);
+
+  --text: #eaf0fa;
+  --muted: #aab8cc;
+  --primary: #62d9c5;
+  --primary-strong: #9df0e2;
+  --on-primary: #04251f;
+  --primary-soft: #173c3a;
+  --focus-ring: rgb(98 217 197 / 45%);
+
+  --danger: #ffa9a1;
+  --danger-soft: #40222a;
+  --success: #86e0a6;
+  --success-soft: #1b3a29;
+  --warning: #f4c27a;
+  --warning-soft: #3d2e17;
+  --info: #9cc2ff;
+
+  --sev-low: #9cc2ff;
+  --sev-low-soft: #1d2f4d;
+  --sev-medium: #f4c27a;
+  --sev-medium-soft: #3d2e17;
+  --sev-high: #ffb08f;
+  --sev-high-soft: #44271d;
+  --sev-critical: #ff9d9d;
+  --sev-critical-soft: #472123;
+  --st-open: #9cc2ff;
+  --st-open-soft: #1d2f4d;
+  --st-under-review: #f4c27a;
+  --st-under-review-soft: #3d2e17;
+  --st-resolved: #86e0a6;
+  --st-resolved-soft: #1b3a29;
+  --st-false-positive: #c2cddd;
+  --st-false-positive-soft: #283447;
+  --st-escalated: #ff9d9d;
+  --st-escalated-soft: #472123;
+
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 28%);
+  --shadow-md: 0 12px 32px rgb(0 0 0 / 34%);
+  --shadow-lg: 0 26px 64px rgb(0 0 0 / 48%);
+  --ring-border: inset 0 1px 0 rgb(255 255 255 / 9%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --surface-subtle: var(--surface-soft);
+    --surface-medium: var(--surface-solid);
+    --surface-elevated: var(--surface-solid);
+  }
+}

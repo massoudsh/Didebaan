@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --experimental-loader ./test-loader.mjs --test src/components/Intelligence.test.jsx src/components/AlertQueue.test.jsx"
+    "test": "node --experimental-loader ./test-loader.mjs --test src/components/Intelligence.test.jsx src/components/AlertQueue.test.jsx src/components/Dashboard.test.jsx src/components/cases/CaseInbox.test.jsx src/components/entities/EntityProfile.test.jsx src/components/rules/RuleCatalog.test.jsx"
   },
   "dependencies": {
     "react": "^18.3.1",

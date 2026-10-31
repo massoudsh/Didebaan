@@ -30,17 +30,50 @@ export const auth = {
   },
 };
 
+export const ERROR_MESSAGES = {
+  offline: 'اتصال شبکه برقرار نیست. اتصال را بررسی کنید؛ ورودی‌های شما حفظ شده‌اند.',
+  forbidden: 'اجازهٔ انجام این عملیات را ندارید. با سرپرست یا افسر انطباق تماس بگیرید.',
+  notFound: 'مورد درخواستی پیدا نشد؛ ممکن است حذف یا بازارجاع شده باشد.',
+  server: 'خطای سرور رخ داد. اگر تکرار شد با پشتیبانی تماس بگیرید.',
+  throttled: 'تعداد درخواست‌ها از حد مجاز گذشته است؛ کمی بعد دوباره تلاش کنید.',
+  validation: 'اطلاعات ارسالی معتبر نیست. خطاهای مشخص‌شده را اصلاح کنید.',
+};
+
 export class ApiError extends Error {
   constructor(status, data) {
     super(extractMessage(status, data));
     this.status = status;
     this.data = data;
+    this.kind = kindOf(status);
+    this.fieldErrors = fieldErrorsOf(data);
   }
 }
 
+function kindOf(status) {
+  if (status === 0) return 'offline';
+  if (status === 400) return 'validation';
+  if (status === 401) return 'unauthorized';
+  if (status === 403) return 'forbidden';
+  if (status === 404) return 'notFound';
+  if (status === 429) return 'throttled';
+  if (status >= 500) return 'server';
+  return 'request';
+}
+
+function fieldErrorsOf(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+  const errors = {};
+  Object.entries(data).forEach(([field, value]) => {
+    if (field === 'detail' || field === 'error' || field === 'non_field_errors') return;
+    errors[field] = Array.isArray(value) ? value.join('، ') : String(value);
+  });
+  return errors;
+}
+
 function extractMessage(status, data) {
-  if (status === 429) return 'تعداد درخواست‌ها از حد مجاز گذشته است؛ کمی بعد دوباره تلاش کنید.';
-  if (!data) return `خطای سرور (${status})`;
+  if (status === 429) return ERROR_MESSAGES.throttled;
+  if (status === 403) return ERROR_MESSAGES.forbidden;
+  if (!data) return status >= 500 ? `${ERROR_MESSAGES.server} (${status})` : `خطای سرور (${status})`;
   if (typeof data === 'string') return data;
   if (data.detail) return data.detail;
   if (data.error) return data.error;
@@ -67,11 +100,17 @@ async function send(path, { method = 'GET', body, params, token = auth.token } =
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Token ${token}`;
 
-  const response = await fetch(buildUrl(path, params), {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(buildUrl(path, params), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (error) {
+    if (error && error.name === 'AbortError') throw error;
+    throw new ApiError(0, null);
+  }
 
   if (response.status === 401 && auth.token) {
     auth.clear();
@@ -126,19 +165,36 @@ export async function login(username, password) {
   return profile;
 }
 
+export const healthStatus = () => request('/api/health/').then(() => 'online').catch(() => 'offline');
+
+function listed(value) {
+  return Array.isArray(value) ? value : (value && value.results) || [];
+}
+
 export const api = {
   rules: (params) => request('/api/rules/', { params }),
+  updateRule: (ruleId, body) => request(`/api/rules/${encodeURIComponent(ruleId)}/`, { method: 'PATCH', body }),
   simulate: (body) => request('/api/intelligence/simulate/', { method: 'POST', body }),
   screen: (body) => request('/api/intelligence/screen/', { method: 'POST', body }),
   graph: (params) => request('/api/intelligence/graph/', { params }),
   sla: () => request('/api/intelligence/sla/'),
   exportCase: (alert_id) => download('/api/intelligence/case-export/', { alert_id }, 'case-evidence.json'),
   alerts: (params) => request('/api/alerts/', { params }),
+  transactions: (params) => request('/api/transactions/', { params }),
   alert: (alertId) => request(`/api/alerts/${encodeURIComponent(alertId)}/`),
+  relatedAlerts: (alertId) => request(`/api/alerts/${encodeURIComponent(alertId)}/related/`),
   statistics: (days = 30) => request('/api/alerts/statistics/', { params: { days } }),
   openCount: () => request('/api/alerts/open_count/'),
-  customerCount: (level) =>
-    request('/api/customers/', { params: { current_risk_level: level } }).then((d) => d.count),
+  customers: (params) => request('/api/customers/', { params }),
+  customer: (customerId) => request(`/api/customers/${encodeURIComponent(customerId)}/`),
+  customerRiskScores: (customerId) => request(`/api/customers/${encodeURIComponent(customerId)}/risk_scores/`),
+  customerAlerts: (customerId) => request(`/api/customers/${encodeURIComponent(customerId)}/alerts/`).then(listed),
+  customerTransactions: (customerId) => request(`/api/customers/${encodeURIComponent(customerId)}/transactions/`).then(listed),
+  searchDevices: (q) => request('/api/devices/', { params: { search: q } }),
+  device: (deviceId) => request(`/api/devices/${encodeURIComponent(deviceId)}/`),
+  searchMerchants: (q) => request('/api/merchants/', { params: { search: q } }),
+  merchant: (merchantId) => request(`/api/merchants/${encodeURIComponent(merchantId)}/`),
+  watchlist: (params) => request('/api/watchlist/', { params }),
   comments: (alertId) => request(`/api/alerts/${encodeURIComponent(alertId)}/comments/`),
   addComment: (alertId, comment) =>
     request(`/api/alerts/${encodeURIComponent(alertId)}/comments/`, { method: 'POST', body: { comment } }),

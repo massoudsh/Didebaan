@@ -8,6 +8,10 @@ let renderer;
 const originals = { ...api };
 const text = (node) => node.children.map((child) => typeof child === 'string' ? child : text(child)).join('');
 const button = (label) => renderer.root.findAllByType('button').find((item) => text(item) === label);
+const openRow = async (id) => {
+  const link = renderer.root.findAllByType('button').find((item) => text(item) === id);
+  await act(async () => link.props.onClick({ stopPropagation() {} }));
+};
 const alerts = [
   { alert_id: 'A1', title: 'Mine', assigned_to: 'alice', severity: 'HIGH', status: 'OPEN', risk_score: 80,
     explanation: [{ rule_name: 'Actual rule name', reason: 'Reason', weight: 2 }] },
@@ -16,32 +20,35 @@ const alerts = [
 
 beforeEach(() => {
   globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  globalThis.document = { activeElement: null, addEventListener() {}, removeEventListener() {}, body: { style: {} } };
   api.alerts = async () => ({ count: 2, results: alerts, next: null });
   api.comments = async () => [];
+  api.relatedAlerts = async () => ({ results: [] });
 });
 afterEach(() => {
   if (renderer) act(() => renderer.unmount());
   renderer = undefined;
   Object.assign(api, originals);
   delete globalThis.window;
+  delete globalThis.document;
 });
 const mount = async (roles = ['INVESTIGATOR']) => act(async () => { renderer = create(<AlertQueue currentUser="alice" roles={roles} />); });
 
 test('investigators can review only their assigned cases and see real explanation fields', async () => {
   await mount();
-  await act(async () => button('A1').props.onClick());
+  await openRow('A1');
   assert.ok(button('ثبت تصمیم'));
   assert.ok(JSON.stringify(renderer.toJSON()).includes('Actual rule name'));
   assert.ok(JSON.stringify(renderer.toJSON()).includes('وزن قانون'));
   await act(async () => renderer.root.findByProps({ 'aria-label': 'بستن' }).props.onClick());
-  await act(async () => button('A2').props.onClick());
+  await openRow('A2');
   assert.equal(button('ثبت تصمیم'), undefined);
   assert.equal(button('افزودن یادداشت'), undefined);
 });
 
 test('supervisors retain review access to cases assigned to other investigators', async () => {
   await mount(['SUPERVISOR']);
-  await act(async () => button('A2').props.onClick());
+  await openRow('A2');
   assert.ok(button('ثبت تصمیم'));
   assert.ok(button('ثبت ارجاع'));
 });
