@@ -4,8 +4,10 @@ URL configuration for AML app.
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .intelligence import IntelligenceViewSet
 
 router = DefaultRouter()
+router.register(r'intelligence', IntelligenceViewSet, basename='intelligence')
 router.register(r'customers', views.CustomerViewSet, basename='customer')
 router.register(r'transactions', views.TransactionViewSet, basename='transaction')
 router.register(r'alerts', views.AlertViewSet, basename='alert')

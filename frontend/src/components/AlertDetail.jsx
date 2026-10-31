@@ -166,7 +166,10 @@ export default function AlertDetail({ alert, currentUser, canAssign, canReview, 
           <section className="block-section">
             <div className="section-head">
               <h3>تاریخچهٔ پرونده</h3>
-              <button className="btn" onClick={exportHistory} disabled={busy}>خروجی CSV</button>
+              <div className="row-gap">
+                <button className="btn" onClick={exportHistory} disabled={busy}>خروجی CSV</button>
+                <button className="btn" onClick={() => run(() => api.exportCase(id))} disabled={busy}>بستهٔ شواهد JSON</button>
+              </div>
             </div>
             {canReview && <form className="stack" onSubmit={submitComment}>
               <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="یادداشت تازهٔ بررسی…" rows={2} aria-label="یادداشت تازه" />

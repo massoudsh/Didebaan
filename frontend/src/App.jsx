@@ -3,10 +3,12 @@ import { auth } from './api.js';
 import Login from './components/Login.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import AlertQueue from './components/AlertQueue.jsx';
+import Intelligence from './components/Intelligence.jsx';
 
 const TABS = [
   { id: 'dashboard', label: 'مرکز فرماندهی', icon: '⌂' },
   { id: 'alerts', label: 'صف عملیات', icon: '◈' },
+  { id: 'intelligence', label: 'تحلیل و انطباق', icon: '◇' },
 ];
 
 const ROLE_LABELS = {
@@ -87,7 +89,9 @@ export default function App() {
           </div>
         </aside>
         <main className="content">
-          {tab === 'dashboard' ? <Dashboard onOpenQueue={() => setTab('alerts')} /> : <AlertQueue currentUser={user.username} roles={user.roles} />}
+          {tab === 'dashboard' && <Dashboard onOpenQueue={() => setTab('alerts')} />}
+          {tab === 'alerts' && <AlertQueue currentUser={user.username} roles={user.roles} />}
+          {tab === 'intelligence' && <Intelligence roles={user.roles} />}
         </main>
       </div>
     </div>

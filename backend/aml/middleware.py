@@ -36,6 +36,8 @@ class AuditTrailMiddleware(MiddlewareMixin):
             try:
                 body = json.loads(request.body.decode('utf-8'))
                 sensitive_fields = ['password', 'secret', 'token', 'api_key']
+                if request.path == '/api/intelligence/screen/':
+                    sensitive_fields.extend(['name', 'national_id'])
                 request._audit_request_body = {
                     k: v for k, v in body.items()
                     if k.lower() not in sensitive_fields

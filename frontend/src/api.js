@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_BASE || '';
+const BASE = import.meta.env?.VITE_API_BASE || '';
 const TOKEN_KEY = 'didebaan.token';
 const USER_KEY = 'didebaan.user';
 const ROLES_KEY = 'didebaan.roles';
@@ -62,10 +62,10 @@ function buildUrl(path, params) {
   return `${BASE}${path}${qs ? `?${qs}` : ''}`;
 }
 
-async function send(path, { method = 'GET', body, params } = {}) {
+async function send(path, { method = 'GET', body, params, token = auth.token } = {}) {
   const headers = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (auth.token) headers.Authorization = `Token ${auth.token}`;
+  if (token) headers.Authorization = `Token ${token}`;
 
   const response = await fetch(buildUrl(path, params), {
     method,
@@ -120,13 +120,19 @@ export async function download(path, params, fallbackName) {
 }
 
 export async function login(username, password) {
-  const data = await request('/api/auth/token/', { method: 'POST', body: { username, password } });
-  const profile = await request('/api/auth/me/');
+  const data = await request('/api/auth/token/', { method: 'POST', body: { username, password }, token: null });
+  const profile = await request('/api/auth/me/', { token: data.token });
   auth.set(data.token, profile);
   return profile;
 }
 
 export const api = {
+  rules: (params) => request('/api/rules/', { params }),
+  simulate: (body) => request('/api/intelligence/simulate/', { method: 'POST', body }),
+  screen: (body) => request('/api/intelligence/screen/', { method: 'POST', body }),
+  graph: (params) => request('/api/intelligence/graph/', { params }),
+  sla: () => request('/api/intelligence/sla/'),
+  exportCase: (alert_id) => download('/api/intelligence/case-export/', { alert_id }, 'case-evidence.json'),
   alerts: (params) => request('/api/alerts/', { params }),
   alert: (alertId) => request(`/api/alerts/${encodeURIComponent(alertId)}/`),
   statistics: (days = 30) => request('/api/alerts/statistics/', { params: { days } }),

@@ -112,10 +112,11 @@ class RuleEngine:
         
         # Daily transaction count threshold
         if 'daily_count_threshold' in config:
-            today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = transaction.transaction_date.replace(hour=0, minute=0, second=0, microsecond=0)
             today_count = Transaction.objects.filter(
                 customer=transaction.customer,
                 transaction_date__gte=today_start,
+                transaction_date__lte=transaction.transaction_date,
                 status='COMPLETED'
             ).count()
             
@@ -126,10 +127,11 @@ class RuleEngine:
         
         # Daily amount threshold
         if 'daily_amount_threshold' in config:
-            today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = transaction.transaction_date.replace(hour=0, minute=0, second=0, microsecond=0)
             today_total = Transaction.objects.filter(
                 customer=transaction.customer,
                 transaction_date__gte=today_start,
+                transaction_date__lte=transaction.transaction_date,
                 status='COMPLETED'
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             
@@ -160,11 +162,12 @@ class RuleEngine:
             if threshold * Decimal('0.9') <= transaction.amount < threshold:
                 # Check for multiple similar transactions
                 lookback_days = config.get('lookback_days', 7)
-                lookback_date = timezone.now() - timedelta(days=lookback_days)
+                lookback_date = transaction.transaction_date - timedelta(days=lookback_days)
                 
                 similar_transactions = Transaction.objects.filter(
                     customer=transaction.customer,
                     transaction_date__gte=lookback_date,
+                    transaction_date__lte=transaction.transaction_date,
                     amount__gte=threshold * Decimal('0.9'),
                     amount__lt=threshold,
                     status='COMPLETED'
@@ -176,14 +179,15 @@ class RuleEngine:
                     risk_score = min(100, similar_transactions * 20)
         
         # Rapid successive transactions (layering)
-        if 'rapid_transaction_threshold' in config:
+        if config.get('rapid_transaction_threshold'):
             minutes_threshold = config.get('rapid_transaction_minutes', 10)
             count_threshold = config.get('rapid_transaction_count', 5)
             
-            time_threshold = timezone.now() - timedelta(minutes=minutes_threshold)
+            time_threshold = transaction.transaction_date - timedelta(minutes=minutes_threshold)
             recent_count = Transaction.objects.filter(
                 customer=transaction.customer,
                 transaction_date__gte=time_threshold,
+                transaction_date__lte=transaction.transaction_date,
                 status='COMPLETED'
             ).count()
             
@@ -212,7 +216,7 @@ class RuleEngine:
         if 'amount_increase_threshold' in config:
             # Get average transaction amount in last 30 days
             lookback_days = config.get('lookback_days', 30)
-            lookback_date = timezone.now() - timedelta(days=lookback_days)
+            lookback_date = transaction.transaction_date - timedelta(days=lookback_days)
             
             avg_amount = Transaction.objects.filter(
                 customer=customer,
