@@ -27,7 +27,13 @@ Django 4.2 · DRF 3.14 · PostgreSQL (SQLite برای تست) · Celery + Redis 
 ## نقشه راه
 جزئیات کامل در `ROADMAP.md` ریشه‌ی ریپو.
 
-## چیزی که باید بدانید (شناخته‌شده، حل‌نشده)
-- ندارد در حال حاضر — آخرین باگ‌های شناخته‌شده (export query-param collision با DRF، singleton queryset caching در rule engine) رفع شدند (به `log.md` نگاه کنید).
+## وضعیت عملیاتی و محدودیت‌ها
+
+- پنج ابزار `/api/intelligence/`: شبیه‌سازی قوانین، گراف ارتباطات، غربالگری فارسی، داشبورد SLA و بستهٔ شواهد JSON. محدودیت نمونه‌ها و snapshot فعلی قوانین در [راهنمای اصلی](../../README.md) آمده است؛ خروجی‌ها قالب رسمی ارسال به رگولاتور نیستند.
+- پایش همگام همان هشدار تولیدشده در pipeline را برمی‌گرداند؛ `asynchronous: true` در endpoint پایش، task موجود Celery را dispatch می‌کند (۲۰۲ با شناسهٔ task، یا ۵۰۳ هنگام خطای صف). پذیرش task به معنی پایان پردازش نیست؛ اجرای مجدد پایش تضمین idempotency ندارد.
+- خروجی CSV/XLSX هشدارها همان فیلتر و ترتیب صف را اعمال و متن ورودی را در برابر formula injection ایمن می‌کند. رابط بازبینی بررسی‌کننده فقط روی پرونده‌های خودش فعال است؛ توضیح هشدار از `rule_name` و `weight` استفاده می‌کند. تازه‌سازی صف هر ۶۰ ثانیه است.
+- فرمان `seed_demo` دادهٔ ساختگی تکرارپذیر را فقط با DEBUG فعال می‌سازد و رمز پیش‌فرض ایجاد نمی‌کند. برخورد شناسه با ایمیل مشتری یا مالک تراکنش متفاوت باعث rollback می‌شود.
+- اعتبارسنجی ۲۰۲۶-۱۰-۳۱: ۷۷ تست Django، ۱۳ تست React بدون مرورگر، بررسی سیستم و migration موفق. بررسی بصری، Redis/worker زنده، مدل ML آموزش‌دیده، انطباق حقوقی و load test جداگانه لازم است.
+- منابع: `backend/aml/views.py:41` و `:272`، `backend/aml/serializers.py:149`، `backend/aml/management/commands/seed_demo.py:12`، `frontend/src/components/AlertQueue.jsx:34`، `frontend/src/components/AlertDetail.jsx:127`.
 
 جزئیات هر بخش: [[index]]

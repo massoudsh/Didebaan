@@ -35,6 +35,7 @@ export default function AlertQueue({ currentUser, roles = [] }) {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
+      setSelected(new Set());
     }, 400);
     return () => clearTimeout(timer);
   }, [searchInput]);
@@ -68,7 +69,7 @@ export default function AlertQueue({ currentUser, roles = [] }) {
   const reload = () => setReloadKey((key) => key + 1);
 
   useEffect(() => {
-    const timer = setInterval(reload, 30000);
+    const timer = setInterval(reload, 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -120,7 +121,7 @@ export default function AlertQueue({ currentUser, roles = [] }) {
     try {
       const format = 'csv';
       if (kind === 'alerts') {
-        await api.exportAlerts({ export_format: format, status: filters.status, severity: filters.severity });
+        await api.exportAlerts({ export_format: format, ...queryParams });
       } else {
         await api.exportComments({ export_format: format });
       }
@@ -144,7 +145,7 @@ export default function AlertQueue({ currentUser, roles = [] }) {
       <div className="page-head">
         <div>
           <h2>صف هشدارها</h2>
-          <p className="muted"><span className="live-label"><span className="pulse-dot" /> زنده</span> · {fmtNumber(data.count)} هشدار مطابق فیلترها · تازه‌سازی خودکار هر ۳۰ ثانیه</p>
+          <p className="muted"><span className="live-label"><span className="pulse-dot" /> زنده</span> · {fmtNumber(data.count)} هشدار مطابق فیلترها · تازه‌سازی خودکار هر ۶۰ ثانیه</p>
         </div>
         <div className="row-gap">
           <button className="btn" onClick={reload}>تازه‌سازی</button>
@@ -297,7 +298,7 @@ export default function AlertQueue({ currentUser, roles = [] }) {
           currentUser={currentUser}
           roles={roles}
           canAssign={canAssign}
-          canReview={canReviewAny || canReviewOwn}
+          canReview={canReviewAny || (canReviewOwn && openAlert.assigned_to === currentUser)}
           onClose={() => setOpenAlert(null)}
           onChanged={handleChanged}
         />

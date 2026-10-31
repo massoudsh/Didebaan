@@ -124,9 +124,9 @@ export default function AlertDetail({ alert, currentUser, canAssign, canReview, 
               <ul className="explain">
                 {explanation.map((item, index) => (
                   <li key={index}>
-                    <strong>{item.rule || 'قانون'}</strong>
+                    <strong>{item.rule_name || 'قانون'}</strong>
                     <span>{item.reason}</span>
-                    {item.contribution !== undefined && <em>سهم: {fmtScore(item.contribution)}</em>}
+                    {item.weight !== undefined && <em>وزن قانون: {fmtScore(item.weight)}</em>}
                   </li>
                 ))}
               </ul>

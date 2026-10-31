@@ -34,7 +34,7 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 
 **Reminder:** Week 3 — auth and filters done. Week 4 — Celery task and audit API done.
 
-**Done:** #11 Token auth, #12 Filtering/search/ordering (django-filter + SearchFilter + OrderingFilter), #13 Rate limiting (UserRateThrottle 100/h, AnonRateThrottle 20/h), #16 Audit log API (read-only paginated `GET /api/audit-log/`). **Open:** #14 Celery async monitor, #15 Bulk export.
+**Implemented:** #11 Token auth, #12 Filtering/search/ordering (django-filter + SearchFilter + OrderingFilter), #13 Rate limiting (UserRateThrottle 100/h, AnonRateThrottle 20/h), #14 Celery async monitor (`POST /api/transactions/monitor/` with `asynchronous: true`, 202 on dispatch and 503 on broker failure), #15 CSV/XLSX bulk export with queue filters and spreadsheet-safe text, #16 Audit log API (read-only paginated `GET /api/audit-log/`). Live Redis/worker deployment still needs separate verification; these are repository implementation statuses, not verified GitHub issue closures.
 
 **GitHub issues:** #11 Token auth, #12 Filtering/search/ordering, #13 Rate limiting, #14 Celery async monitor, #15 Bulk export, #16 Audit log API.
 
@@ -64,7 +64,7 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 - **Features:** #30 Notifications, #31 Rule versioning, #32 Configurable thresholds, #33 SAR/CTR workflow, #34 ML risk model; #35 API examples docs, #36 High-risk countries sample; #37 Docker, #38 CI.
 - **#39 Alert case management (Done):** `Alert.assigned_to`/`assigned_at` + `AlertComment` case-history thread (COMMENT/ASSIGNMENT/STATUS_CHANGE). API: `POST /api/alerts/{alert_id}/assign/`, `GET|POST /api/alerts/{alert_id}/comments/`. `review`/`escalate`/`false_positive` now auto-log a STATUS_CHANGE comment.
 
-### Backlog — proposed future issues (not started)
+### Delivered backlog items
 
 - **#40 Watchlist / sanctioned-entity model:** Replace the hardcoded sanctioned-country list in `aml_rules.py` with a `WatchlistEntry` model (country, entity name, national ID, source list) manageable via Admin/API, so compliance can update it without a deploy.
   - **Status:** Done — `WatchlistEntry` model + `/api/watchlist/` + Admin; SANCTIONED rule reads active entries (migrations 0006/0007 seed UN/FATF countries).
@@ -72,7 +72,7 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
   - **Status:** Done — `escalate_overdue_alerts` Celery task (every 15 min) escalates assigned alerts past SLA (`ThresholdConfig` `ALERT_SLA_HOURS`, default `AML_ALERT_SLA_HOURS`=24), logs to case history and notifies.
 - **#42 Bulk alert actions:** `POST /api/alerts/bulk-assign/` and `bulk-review/` to act on a list of `alert_id`s at once (complements the existing bulk export).
   - **Status:** Done — `POST /api/alerts/bulk-assign/` and `bulk-review/`.
-- **#43 Frontend dashboard (RTL/Persian):** Standalone React/Vue app consuming the existing REST API — alert queue with assignment/case-history UI, risk dashboards, RTL layout (Phase 3 items #17–#21, not yet built).
+- **#43 Frontend dashboard (RTL/Persian):** Standalone React app consuming the REST API — alert queue with assignment/case-history UI, risk dashboards, RTL layout and light/dark themes.
   - **Status:** Done — `frontend/` (React + Vite, RTL/Persian): token login, risk dashboard, alert queue (filters, bulk assign/review, CSV export) and case drawer (assign, review, comment history). Run with `npm install && npm run dev`.
 - **#44 Structured (JSON) logging in production:** Replace default logging config with JSON formatter for log aggregators (Phase 5 item).
   - **Status:** Done — `config.logging.JsonFormatter`, enabled in production settings.
@@ -128,4 +128,12 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 | 4 | ML, rule versioning, notifications, SAR workflow | 8–10 |
 | 5 | Docker, CI, production hardening | Ongoing |
 
-*Last updated: 2026-02-14*
+## Operational intelligence and stabilization
+
+- **Delivered:** read-only rule simulation, bounded relationship graphs, Persian watchlist screening, SLA dashboards and JSON case evidence bundles. See [README](README.md) for endpoints and limits.
+- **Stabilized:** one alert per monitoring pipeline invocation, optional async API dispatch, filtered spreadsheet-safe exports, investigator ownership controls in the UI, correct explanation fields, search selection reset and 60-second polling.
+- **Demo:** development-only, repeatable `python backend/manage.py seed_demo`; no default credentials or production seeding.
+- **Validated:** 77 backend tests and 13 browser-free frontend tests; Django checks and migration drift check pass. Visual layout and live Redis/worker behavior require separate verification.
+- **Still deployment/research work:** trained and evaluated ML models, regulator-specific submission formats, load testing, production security/dependency review and verified maintained external watchlist feeds. Existing scaffolding is not evidence these are production-ready.
+
+*Last reviewed: 2026-10-31. GitHub issue tracker status was not verified in this review.*

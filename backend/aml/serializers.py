@@ -149,6 +149,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
 class MonitorTransactionSerializer(serializers.Serializer):
     """Serializer for transaction monitoring endpoint"""
     transaction_id = serializers.CharField(required=True)
+    asynchronous = serializers.BooleanField(default=False)
 
 
 class ReviewAlertSerializer(serializers.Serializer):

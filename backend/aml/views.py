@@ -61,7 +61,7 @@ def tabular_response(headers, rows, export_format, sheet_title, filename_base):
             cell.alignment = Alignment(horizontal='center')
 
         for row in rows:
-            ws.append(row)
+            ws.append([_safe_cell(value) if isinstance(value, str) else value for value in row])
 
         for col in ws.columns:
             max_len = max(len(str(cell.value or '')) for cell in col)
@@ -84,7 +84,7 @@ def tabular_response(headers, rows, export_format, sheet_title, filename_base):
     writer = csv.writer(response)
     writer.writerow(headers)
     for row in rows:
-        writer.writerow(row)
+        writer.writerow([_safe_cell(value) for value in row])
     return response
 
 
@@ -269,27 +269,19 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Monitor transaction
+        if serializer.validated_data['asynchronous']:
+            from kombu.exceptions import OperationalError
+            from .tasks import monitor_transaction_async
+
+            try:
+                task = monitor_transaction_async.apply_async(args=[transaction_id], retry=False)
+            except OperationalError:
+                return Response({'error': 'Monitoring queue is unavailable. Try again later.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response({'task_id': task.id, 'transaction_id': transaction_id, 'status': 'queued'}, status=status.HTTP_202_ACCEPTED)
+
         monitor = get_transaction_monitor()
         result = monitor.monitor_transaction(transaction)
-        
-        # Generate alert if needed
-        alert = None
-        if result['should_alert']:
-            alert_generator = get_alert_generator()
-            
-            # Get triggered rules
-            from .rules.aml_rules import get_rule_engine
-            rule_engine = get_rule_engine()
-            triggered_rules, reasons, _ = rule_engine.evaluate_transaction(transaction)
-            
-            alert = alert_generator.generate_alert(
-                transaction=transaction,
-                triggered_rules=triggered_rules,
-                risk_score=result['risk_score'],
-                severity=result['alert_severity'],
-                reasons=reasons
-            )
+        alert = Alert.objects.filter(alert_id=result['alert_id']).first() if result['alert_id'] else None
         
         response_data = {
             'monitoring_result': result,
@@ -422,17 +414,7 @@ class AlertViewSet(viewsets.ModelViewSet):
         would make DRF raise Http404 before reaching this method.
         """
         export_format = request.query_params.get('export_format', 'csv').lower()
-        queryset = self.get_queryset()
-
-        # Optional filters
-        alert_status = request.query_params.get('status')
-        severity = request.query_params.get('severity')
-        if alert_status:
-            queryset = queryset.filter(status=alert_status)
-        if severity:
-            queryset = queryset.filter(severity=severity)
-
-        queryset = queryset.select_related('customer', 'transaction').order_by('-created_at')
+        queryset = self.filter_queryset(self.get_queryset()).select_related('customer', 'transaction')
 
         headers = [
             'Alert ID', 'Severity', 'Status', 'Risk Score',
@@ -510,8 +492,8 @@ class AlertViewSet(viewsets.ModelViewSet):
                 comment.alert.severity,
                 comment.alert.customer.customer_id,
                 comment.comment_type,
-                _safe_cell(comment.author),
-                _safe_cell(comment.comment),
+                comment.author,
+                comment.comment,
                 comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             ]
 
