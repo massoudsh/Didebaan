@@ -1,31 +1,47 @@
-# Didebaan | دیده‌بان
+<div dir="rtl">
 
-**Persian-first fraud monitoring and AML casework for Iranian fintech teams.**
+# دیده‌بان
 
-Django REST API + React RTL operations console. Configurable rules turn transaction signals into explainable alerts, investigator decisions, and exportable evidence—not automatic proof of fraud or certified regulatory compliance.
+**سامانهٔ پایش تقلب، مدیریت هشدار و عملیات انطباق برای تیم‌های فین‌تک ایرانی**
+
+دیده‌بان یک API مبتنی بر Django و یک کنسول عملیاتی React راست‌چین است. قوانین قابل‌تنظیم، سیگنال‌های تراکنش را به هشدارهای قابل‌توضیح تبدیل می‌کنند تا بررسی‌کننده بتواند تصمیم، دلیل و مستندات پرونده را ثبت کند.
+
+> این سامانه ابزار تصمیم‌یار است؛ هشدار به‌تنهایی اثبات تقلب نیست و خروجی آن جایگزین تأیید حقوقی یا الزامات رسمی نهادهای ناظر نیست.
 
 ```mermaid
-flowchart LR
-    T[Transactions] --> R[Rules and risk scoring]
-    R --> A[Explainable alerts]
-    A --> C[Assignment and review]
-    C --> E[Case evidence]
-    R -. test before activation .-> S[Rule simulation]
+flowchart RL
+    T[تراکنش‌ها] --> R[قوانین و امتیاز ریسک]
+    R --> A[هشدارهای قابل‌توضیح]
+    A --> C[ارجاع و بررسی انسانی]
+    C --> E[مستندات پرونده]
+    R -. شبیه‌سازی پیش از فعال‌سازی .-> S[آزمایش قوانین]
 ```
 
-## What works today
+## امکانات اصلی
 
-- **Operations:** command-center dashboard, searchable alert queue, case inbox with lifecycle tracking, assignment, bulk review, case history, CSV/XLSX exports, light/dark RTL interface.
-- **Console:** glass surfaces built on design tokens, global search across alerts/customers/devices/merchants, entity risk profiles, plain-language rule transparency, keyboard navigation and non-color severity cues, masking of national IDs and emails for non-compliance roles, confirmation before consequential decisions.
-- **Risk signals:** amount/velocity/behavioral rules, shared devices, merchant abuse, BNPL signals, PEP and managed watchlists.
-- **Investigation tools:** rule simulation, customer relationship graphs, Persian-name screening, SLA deadlines, JSON evidence bundles.
-- **Backend:** token authentication, role permissions, audit trail, Celery monitoring/escalation, configurable thresholds and rule versions.
+- **مرکز فرماندهی:** شاخص‌های قابل‌کلیک، تصویر ریسک، پرونده‌های قدیمی و وضعیت رسیدگی.
+- **صف عملیات:** جست‌وجو، فیلتر، مرتب‌سازی، ارجاع، بازبینی گروهی، تاریخچه و خروجی CSV/XLSX.
+- **کارتابل پرونده‌ها:** پیگیری مرحله‌های پرونده از هشدار تا تصمیم نهایی در صندوق‌های نیازمند اقدام، در بررسی، بدون مالک و بسته‌شده.
+- **پروفایل موجودیت:** نمایش مشتری، دستگاه و پذیرنده همراه با هشدارها، تراکنش‌ها و روند امتیاز ریسک؛ شناسهٔ ملی و ایمیل برای نقش‌های غیرانطباقی پوشانده می‌شوند.
+- **قوانین شفاف:** توضیح سادهٔ هر قانون، پارامترهای قابل‌مشاهده و پیش‌نمایش تغییر پیش از ثبت برای افسر انطباق.
+- **هوش و انطباق:** شبیه‌سازی قانون، گراف ارتباط مشتری‌ها، غربالگری نام فارسی، پایش مهلت رسیدگی و بستهٔ شواهد JSON.
+- **امنیت عملیاتی:** احراز هویت توکنی، دسترسی مبتنی بر نقش، گزارش ممیزی، تأیید تصمیم‌های مهم و ثبت دلیل برای نتیجهٔ نهایی.
+- **رابط فارسی:** RTL، تم روشن/تیره، ناوبری با صفحه‌کلید، اعلان شدت با نماد و متن و رعایت `prefers-reduced-motion`.
 
-## Run locally
+---
 
-Requires **Python 3.11–3.12** and **Node.js 20+**. SQLite works for development; Redis is needed only for queued jobs and scheduled escalation.
+## راه‌اندازی سریع
 
-From the repository root:
+### پیش‌نیازها
+
+- Python **3.11 تا 3.12**
+- Node.js **20 یا جدیدتر**
+- SQLite برای توسعه کافی است.
+- Redis فقط برای صف پردازش و ارتقای زمان‌بندی‌شدهٔ هشدارها لازم است.
+
+### ۱) دریافت و آماده‌سازی بک‌اند
+
+از ریشهٔ پروژه اجرا کنید:
 
 ```bash
 python3 -m venv .venv
@@ -37,76 +53,89 @@ python backend/manage.py seed_demo
 python backend/manage.py runserver
 ```
 
-In a second terminal:
+در مرحلهٔ `createsuperuser` نام کاربری و گذرواژهٔ خودتان را تعیین می‌کنید. **حساب یا گذرواژهٔ پیش‌فرض وجود ندارد.**
+
+### ۲) اجرای رابط کاربری
+
+در یک ترمینال دوم، از ریشهٔ پروژه:
 
 ```bash
 npm --prefix frontend ci
 npm --prefix frontend run dev
 ```
 
-Sign in with the superuser you created. **There is no default username or password.** The frontend proxies `/api` to the backend; set `VITE_BACKEND_URL` when the backend runs elsewhere. `VITE_API_BASE` configures the API origin for a separately deployed frontend.
+رابط درخواست‌های `/api` را به بک‌اند هدایت می‌کند. اگر بک‌اند در مبدأ دیگری اجرا می‌شود، `VITE_BACKEND_URL` را تنظیم کنید. برای رابطی که جداگانه استقرار می‌یابد، از `VITE_API_BASE` استفاده کنید.
 
-### Two-minute demo
+### ۳) ورود و مرور دموی دو دقیقه‌ای
 
-`seed_demo` creates three fictional customers, three monitored transactions, a shared device/merchant, a demo rule and a fictional watchlist entry. Re-running it preserves existing demo records; it refuses to run with `DEBUG=False`. Use an isolated development database.
+فرمان `seed_demo` سه مشتری و تراکنش ساختگی، یک دستگاه/پذیرندهٔ مشترک، قانون نمونه و رکورد ساختگی فهرست پایش می‌سازد. اجرای دوبارهٔ آن دادهٔ نمونهٔ موجود را حفظ می‌کند و در حالت `DEBUG=False` اجرا نمی‌شود؛ فقط از پایگاه‌دادهٔ توسعهٔ جداگانه استفاده کنید.
 
-1. **مرکز فرماندهی:** click a KPI tile to jump into the queue with that filter applied.
-2. **صف عملیات:** open a demo alert, inspect its reasons, assign it to yourself and add a note; final outcomes ask for a reason and a confirmation.
-3. **کارتابل پرونده‌ها:** switch between needs-action, in-review, unowned and closed queues and open a case to see its stage timeline.
-4. **قوانین و شفافیت:** read each rule type in plain language; a compliance officer can preview parameter changes before confirming.
-5. **تحلیل و انطباق → شبکهٔ ارتباطات:** enter `DEMO-C1` to see shared infrastructure.
-6. **غربالگری فارسی:** search `شرکت نمونه آزمایشی` against the fictional demo watchlist.
-7. **آزمایش قوانین:** choose `Demo amount threshold`, change `amount_threshold`, and compare matches without activating a rule.
-8. **بستهٔ شواهد:** download a case bundle from the alert drawer. Assign an alert to make it appear in the SLA dashboard.
+1. در **مرکز فرماندهی** یکی از کارت‌های شاخص را انتخاب کنید تا صف عملیات با همان فیلتر باز شود.
+2. در **صف عملیات** هشدار نمونه را باز کنید، علت‌ها را ببینید، آن را ارجاع دهید و یادداشت ثبت کنید. نتیجهٔ نهایی به دلیل و تأیید نیاز دارد.
+3. در **کارتابل پرونده‌ها** میان صندوق‌های «نیازمند اقدام»، «در بررسی»، «بدون مالک» و «بسته‌شده» جابه‌جا شوید و خط زمانی پرونده را ببینید.
+4. در **قوانین و شفافیت** قانون `Demo amount threshold` را انتخاب کنید؛ افسر انطباق پیش از ثبت، خلاصهٔ تغییر پارامترها را می‌بیند.
+5. در **تحلیل و انطباق ← شبکهٔ ارتباطات** مقدار `DEMO-C1` را وارد کنید تا زیرساخت مشترک نمایش داده شود.
+6. در **غربالگری فارسی** نام `شرکت نمونه آزمایشی` را در فهرست ساختگی بررسی کنید.
 
-## Roles
+---
 
-Assign Django groups through **Admin → Users → Groups**. Superusers have every role.
+## نقش‌ها و دسترسی‌ها
 
-| Group | Access |
+گروه‌ها را از مسیر **Admin → Users → Groups** به کاربر اختصاص دهید. کاربر ابرمدیر به همهٔ نقش‌ها دسترسی دارد.
+
+| گروه | دسترسی |
 |---|---|
-| `AUDITOR` | Read operations, analytics and exports |
-| `INVESTIGATOR` | Read access; review/comment on cases assigned to that username |
-| `SUPERVISOR` | Assign cases and perform bulk review |
-| `COMPLIANCE_OFFICER` | Manage rules, customers and watchlists; simulation and screening |
+| `AUDITOR` | مشاهدهٔ عملیات، تحلیل‌ها و خروجی‌ها |
+| `INVESTIGATOR` | مشاهده و ثبت بررسی/یادداشت برای پرونده‌های ارجاع‌شده به نام کاربری خود |
+| `SUPERVISOR` | ارجاع پرونده و بازبینی گروهی |
+| `COMPLIANCE_OFFICER` | مدیریت قوانین، مشتری‌ها و فهرست‌های پایش؛ شبیه‌سازی و غربالگری |
 
-An authenticated user without an operational group receives `403`. Investigators cannot self-assign; a supervisor or compliance officer assigns their cases.
+کاربر احراز هویت‌شده‌ای که عضو هیچ‌یک از گروه‌های عملیاتی نباشد پاسخ `403` می‌گیرد. بررسی‌کننده نمی‌تواند پرونده را به خودش ارجاع دهد؛ سرپرست یا افسر انطباق باید این کار را انجام دهد.
 
-## API essentials
+---
 
-- Obtain a token with `POST /api/auth/token/` using `username` and `password`; send `Authorization: Token <your-token>` on subsequent requests.
-- Interactive documentation: `/api/docs/`; OpenAPI: `/api/schema/`.
-- Health/readiness: `/api/health/`, `/api/ready/`.
-- List APIs are paginated. Customer and transaction relationships in POST bodies use their **database UUIDs**, not display IDs such as `DEMO-C1`.
+## API و مسیرهای مهم
 
-| Workflow | Endpoint |
+- دریافت توکن: `POST /api/auth/token/` با `username` و `password`
+- ارسال توکن در درخواست‌های بعدی: `Authorization: Token <your-token>`
+- مستندات تعاملی: `/api/docs/`
+- مشخصات OpenAPI: `/api/schema/`
+- سلامت و آمادگی سرویس: `/api/health/` و `/api/ready/`
+
+| کاربرد | مسیر |
 |---|---|
-| Monitor synchronously | `POST /api/transactions/monitor/` with `{"transaction_id":"..."}` |
-| Queue monitoring | Same endpoint with `"asynchronous":true`; returns `202` and `task_id` |
-| Alert operations | `/api/alerts/`, `/{alert_id}/assign/`, `/{alert_id}/review/`, `/{alert_id}/comments/` |
-| Bulk actions | `POST /api/alerts/bulk-assign/`, `/api/alerts/bulk-review/` |
-| Filtered exports | `GET /api/alerts/export/?export_format=csv` or `xlsx`; supports queue search/filter/ordering |
-| Case history export | `GET /api/alerts/comments-export/?alert_id=...&export_format=csv` |
-| Simulation | `POST /api/intelligence/simulate/` with `rule_id`, `configuration`, optional `days` and `limit` |
-| Relationship graph | `GET /api/intelligence/graph/?customer_id=DEMO-C1&days=30` |
-| Persian screening | `POST /api/intelligence/screen/` with `name` and/or `national_id` |
-| SLA dashboard | `GET /api/intelligence/sla/` |
-| Evidence bundle | `GET /api/intelligence/case-export/?alert_id=...` |
+| پایش همگام تراکنش | `POST /api/transactions/monitor/` با `{"transaction_id":"..."}` |
+| پایش صفی | همان مسیر با `"asynchronous":true`؛ پاسخ `202` و `task_id` |
+| عملیات هشدار | `/api/alerts/`، `/{alert_id}/assign/`، `/{alert_id}/review/` و `/{alert_id}/comments/` |
+| عملیات گروهی | `POST /api/alerts/bulk-assign/` و `/api/alerts/bulk-review/` |
+| خروجی هشدار | `GET /api/alerts/export/?export_format=csv` یا `xlsx` |
+| خروجی تاریخچه | `GET /api/alerts/comments-export/?alert_id=...&export_format=csv` |
+| شبیه‌سازی قانون | `POST /api/intelligence/simulate/` |
+| گراف ارتباط | `GET /api/intelligence/graph/?customer_id=DEMO-C1&days=30` |
+| غربالگری فارسی | `POST /api/intelligence/screen/` |
+| گزارش SLA | `GET /api/intelligence/sla/` |
+| بستهٔ شواهد | `GET /api/intelligence/case-export/?alert_id=...` |
 
-### Background processing (optional)
+رابط‌های فهرستی صفحه‌بندی دارند. رابطهٔ مشتری و تراکنش در بدنهٔ درخواست‌های POST با UUID پایگاه‌داده انجام می‌شود، نه شناسهٔ نمایشی مانند `DEMO-C1`.
 
-Start Redis separately, then run these in separate terminals from `backend/` with the virtual environment activated:
+---
+
+## پردازش پس‌زمینه (اختیاری)
+
+Redis را جداگانه راه‌اندازی کنید، سپس با فعال بودن محیط پایتون، این دو فرمان را در ترمینال‌های جداگانه و از مسیر `backend/` اجرا کنید:
 
 ```bash
 celery -A config worker --loglevel=info
 celery -A config beat --loglevel=info
 ```
 
-Configure `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` for your Redis instance. SLA checks run every 15 minutes; the default assignment deadline is 24 hours, configurable through `ThresholdConfig` (`ALERT_SLA_HOURS`). A broker dispatch failure returns `503`; an accepted task is not a completed result. Inspect worker logs and retrieve the updated transaction/alerts after processing.
+مقادیر `CELERY_BROKER_URL` و `CELERY_RESULT_BACKEND` را برای Redis تنظیم کنید. بررسی SLA هر ۱۵ دقیقه اجرا می‌شود و مهلت پیش‌فرض ارجاع ۲۴ ساعت است؛ مقدار آن از `ThresholdConfig` با کلید `ALERT_SLA_HOURS` قابل‌تنظیم است. پاسخ `202` به‌معنی پذیرفته‌شدن کار است، نه اتمام آن؛ وضعیت worker و هشدارهای به‌روزشده را بررسی کنید.
 
-## Validate changes
+---
 
-From the repository root, with the Python environment activated:
+## اعتبارسنجی تغییرات
+
+با فعال بودن محیط پایتون، از ریشهٔ پروژه اجرا کنید:
 
 ```bash
 python backend/manage.py test aml
@@ -116,15 +145,19 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-Frontend tests use a non-browser React renderer; they do not validate visual layout, color contrast or motion, so check those in a browser before release. `npm --prefix frontend run build` is the production bundle check. Backend tests exercise the task pipeline locally and mock queue dispatch; a live Redis/worker deployment needs separate verification.
+تست‌های رابط از رندرکنندهٔ React بدون مرورگر استفاده می‌کنند و چیدمان بصری، نسبت کنتراست و حرکت را پوشش نمی‌دهند. تست‌های بک‌اند خط لولهٔ وظایف را به‌صورت محلی بررسی و dispatch صف را mock می‌کنند؛ Redis و worker واقعی باید جداگانه در محیط استقرار تأیید شوند.
 
-## Limits and deployment notes
+---
 
-- Simulation supports **THRESHOLD, PATTERN, BEHAVIORAL and GEOGRAPHIC**, at most 500 newest completed transactions over 1–90 days. It uses current retained records/customer attributes—not a historical database snapshot or a false-positive estimate.
-- Graphs sample 200 transactions and at most 50 related customers. Screening handles up to 5,000 active entity entries and returns up to 100 ranked matches; larger lists are rejected rather than partially screened. Similarity scores are not probabilities.
-- Evidence exports contain sensitive case data and **current** rule snapshots. Histories over 10,000 comments are rejected; use the separate history export. These are not official regulator-specific submissions.
-- Default throttles are 100 requests/hour per authenticated user and 20/hour anonymously; queue refresh is every 60 seconds. Configure suitable quotas and a shared cache for production/multiple workers.
-- Country lists, demo thresholds and ML scaffolding are examples—not live sanctions feeds, verified legal requirements, or a trained production model.
-- For production set `DJANGO_ENV=production`, a strong `SECRET_KEY`, `ALLOWED_HOSTS`, `USE_POSTGRES=True`, database settings and `USE_HTTPS=True` behind a correctly configured HTTPS proxy. Serve the built frontend and collected static files separately; use Gunicorn rather than Django's development server. Review dependency security, backups, monitoring and applicable regulations before deployment.
+## محدودیت‌ها و نکات استقرار
 
-[Roadmap](ROADMAP.md) · [Architecture](docs/wiki/overview.md) · [Role permissions](docs/wiki/concepts/role-based-access.md)
+- شبیه‌سازی فقط از قوانین `THRESHOLD`، `PATTERN`، `BEHAVIORAL` و `GEOGRAPHIC` پشتیبانی می‌کند؛ حداکثر ۵۰۰ تراکنش تکمیل‌شدهٔ جدیدتر در بازهٔ ۱ تا ۹۰ روز بررسی می‌شود.
+- گراف حداکثر ۲۰۰ تراکنش و ۵۰ مشتری مرتبط را نمونه‌برداری می‌کند. غربالگری حداکثر ۵٬۰۰۰ رکورد فعال را می‌خواند و تا ۱۰۰ تطبیق برمی‌گرداند. امتیاز شباهت احتمال نیست.
+- بستهٔ شواهد دادهٔ حساس و snapshot فعلی قانون را دارد و جایگزین فرم رسمی نهاد ناظر نیست.
+- نرخ پیش‌فرض درخواست‌ها ۱۰۰ درخواست در ساعت برای کاربر احراز هویت‌شده و ۲۰ درخواست در ساعت برای کاربر ناشناس است. نرخ‌ها و cache مشترک را برای تولید متناسب‌سازی کنید.
+- فهرست کشورها، آستانه‌های نمونه و زیرساخت ML نمونه هستند؛ آن‌ها feed تحریم زنده، الزام حقوقی تأییدشده یا مدل تولیدی آموزش‌دیده نیستند.
+- برای تولید، `DJANGO_ENV=production`، `SECRET_KEY` قوی، `ALLOWED_HOSTS`، `USE_POSTGRES=True`، تنظیمات پایگاه‌داده و `USE_HTTPS=True` را پشت proxy معتبر HTTPS تنظیم کنید. رابط build‌شده و static files را جداگانه سرو کنید و به‌جای سرور توسعهٔ Django از Gunicorn استفاده کنید.
+
+[نقشهٔ راه](ROADMAP.md) · [معماری](docs/wiki/overview.md) · [دسترسی نقش‌ها](docs/wiki/concepts/role-based-access.md)
+
+</div>
