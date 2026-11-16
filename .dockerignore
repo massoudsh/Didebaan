@@ -1,0 +1,24 @@
+# Build context for the API image: send only what the backend needs.
+.git
+.gitignore
+.github
+.noqte
+.vscode
+.idea
+docs
+frontend
+uploads
+*.md
+*.pdf
+.env
+.env.*
+docker-compose*.yml
+Makefile
+node_modules
+**/__pycache__
+**/*.py[cod]
+backend/db.sqlite3
+backend/logs
+backend/staticfiles
+backend/venv
+backend/.venv

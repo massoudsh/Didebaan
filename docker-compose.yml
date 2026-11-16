@@ -1,88 +1,171 @@
-# Didebaan AML — Docker Compose
-# Issue #37: Full stack: app + PostgreSQL + Redis
-# Usage: docker-compose up -d
+# Didebaan — full local stack.
+#
+#   cp .env.docker.example .env
+#   docker compose up -d --build
+#   docker compose exec backend python manage.py createsuperuser
+#   open http://localhost:8080
+#
+# Services: postgres, redis, backend (gunicorn), worker (Celery), beat
+# (Celery beat), frontend (nginx + built React console).
+# Demo data: docker compose --profile demo run --rm seed
+#
+# Values are read from the shell or a root .env file. Defaults below are for
+# local development only; set DJANGO_ENV=production with real secrets to deploy.
 
-version: "3.9"
+x-backend-environment: &backend-environment
+  DJANGO_ENV: ${DJANGO_ENV:-development}
+  DJANGO_SETTINGS_MODULE: config.settings
+  SECRET_KEY: ${SECRET_KEY:-django-insecure-local-docker-only}
+  DEBUG: ${DEBUG:-True}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+  USE_POSTGRES: "True"
+  DB_NAME: ${DB_NAME:-didebaan_aml}
+  DB_USER: ${DB_USER:-didebaan}
+  DB_PASSWORD: ${DB_PASSWORD:-didebaan_local_password}
+  DB_HOST: db
+  DB_PORT: "5432"
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+  USE_HTTPS: ${USE_HTTPS:-False}
+  AML_ALERT_SLA_HOURS: ${AML_ALERT_SLA_HOURS:-24}
+  TZ: Asia/Tehran
+
+x-api-image: &api-image
+  image: didebaan-api:local
+  build:
+    context: .
+    dockerfile: Dockerfile
 
 services:
   db:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: didebaan_aml
-      POSTGRES_USER: didebaan
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      POSTGRES_DB: ${DB_NAME:-didebaan_aml}
+      POSTGRES_USER: ${DB_USER:-didebaan}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-didebaan_local_password}
+      TZ: Asia/Tehran
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U didebaan -d didebaan_aml"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
+    networks: [didebaan]
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly no
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
-      retries: 5
+      retries: 10
+    networks: [didebaan]
 
-  app:
-    build: .
+  backend:
+    <<: *api-image
     restart: unless-stopped
+    init: true
     environment:
-      DJANGO_ENV: production
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-in-production}
-      USE_POSTGRES: "true"
-      DB_NAME: didebaan_aml
-      DB_USER: didebaan
-      DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
-      DB_HOST: db
-      DB_PORT: "5432"
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
-      USE_HTTPS: ${USE_HTTPS:-false}
+      <<: *backend-environment
+      RUN_MIGRATIONS: "1"
+      COLLECT_STATIC: "1"
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - backend_logs:/app/logs
+      - static_data:/app/staticfiles
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - app_logs:/app/logs
-      - app_static:/app/staticfiles
+    networks: [didebaan]
 
-  celery:
-    build: .
+  worker:
+    <<: *api-image
     restart: unless-stopped
-    command: celery -A config worker --loglevel=info --concurrency=2
+    init: true
+    command: celery -A config worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
     environment:
-      DJANGO_ENV: production
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-in-production}
-      USE_POSTGRES: "true"
-      DB_NAME: didebaan_aml
-      DB_USER: didebaan
-      DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
-      DB_HOST: db
-      DB_PORT: "5432"
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-      - app
+      <<: *backend-environment
+      RUN_MIGRATIONS: "0"
+      COLLECT_STATIC: "0"
     volumes:
-      - app_logs:/app/logs
+      - backend_logs:/app/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [didebaan]
+
+  beat:
+    <<: *api-image
+    restart: unless-stopped
+    init: true
+    command: celery -A config beat --loglevel=info --schedule=/app/beat/celerybeat-schedule
+    environment:
+      <<: *backend-environment
+      RUN_MIGRATIONS: "0"
+      COLLECT_STATIC: "0"
+    volumes:
+      - backend_logs:/app/logs
+      - beat_data:/app/beat
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [didebaan]
+
+  frontend:
+    image: didebaan-console:local
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ""
+        VITE_ENVIRONMENT: ${VITE_ENVIRONMENT:-production}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    volumes:
+      - static_data:/static-assets:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [didebaan]
+
+  # One-shot demo data loader. Fictional records only; requires DEBUG=True.
+  # Run explicitly: docker compose --profile demo run --rm seed
+  seed:
+    <<: *api-image
+    profiles: ["demo"]
+    environment:
+      <<: *backend-environment
+      DJANGO_ENV: development
+      DEBUG: "True"
+      RUN_MIGRATIONS: "0"
+      COLLECT_STATIC: "0"
+    command: python manage.py seed_demo
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: "no"
+    networks: [didebaan]
+
+networks:
+  didebaan:
+    driver: bridge
 
 volumes:
   postgres_data:
-  redis_data:
-  app_logs:
-  app_static:
+  backend_logs:
+  static_data:
+  beat_data:

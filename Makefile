@@ -6,10 +6,11 @@ MANAGE = cd backend && $(PYTHON) manage.py
 VENV = backend/venv
 VENV_BIN = $(VENV)/bin
 
-.PHONY: help venv install migrate run run-prod test shell createsuperuser collectstatic create-sample-rules
+.PHONY: help venv install migrate run run-prod test shell createsuperuser collectstatic create-sample-rules check docker-build docker-up docker-down docker-stop docker-restart docker-ps docker-logs docker-seed docker-admin docker-migrate docker-test docker-reset
 
 help:
 	@echo "Didebaan AML — targets: venv, install, migrate, run, run-prod, test, shell, createsuperuser, collectstatic, create-sample-rules"
+	@echo "Docker — targets: docker-build, docker-up, docker-down, docker-stop, docker-restart, docker-ps, docker-logs SERVICE=..., docker-seed, docker-admin, docker-migrate, docker-test, docker-reset"
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -45,18 +46,44 @@ create-sample-rules:
 check:
 	$(MANAGE) check
 
-# Docker targets (Issue #37)
+# Docker targets — full stack from docker-compose.yml
+COMPOSE ?= docker compose
+
 docker-build:
-	docker build -t didebaan-aml .
+	$(COMPOSE) build
 
 docker-up:
-	docker-compose up -d
+	$(COMPOSE) up -d --build
 
 docker-down:
-	docker-compose down
+	$(COMPOSE) down
+
+docker-stop:
+	$(COMPOSE) stop
+
+docker-restart:
+	$(COMPOSE) restart
+
+docker-ps:
+	$(COMPOSE) ps
 
 docker-logs:
-	docker-compose logs -f app
+	$(COMPOSE) logs -f $(SERVICE)
+
+docker-seed:
+	$(COMPOSE) --profile demo run --rm seed
+
+docker-admin:
+	$(COMPOSE) exec backend python manage.py createsuperuser
+
+docker-migrate:
+	$(COMPOSE) exec backend python manage.py migrate --noinput
+
+docker-test:
+	$(COMPOSE) run --rm -e RUN_MIGRATIONS=0 backend python manage.py test aml
+
+docker-reset:
+	$(COMPOSE) down -v
 
 # Iran market setup
 setup-iran:

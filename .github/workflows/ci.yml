@@ -88,3 +88,18 @@ jobs:
         run: |
           cd backend
           python manage.py makemigrations --check --dry-run
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate compose configuration
+        run: docker compose config -q
+
+      - name: Build API and console images
+        run: docker compose build

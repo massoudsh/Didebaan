@@ -101,7 +101,7 @@ Timeline and priorities for development, UI/UX, and enhancements. Use this with 
 
 | Priority | Item | Timeline | Notes |
 |----------|------|----------|--------|
-| P0 | Dockerfile + docker-compose (app, DB, Redis) | As needed | Django + gunicorn, nginx optional |
+| Done | Docker Compose stack: API (gunicorn), Celery worker + beat, PostgreSQL, Redis, nginx-served console | As needed | `docker compose up -d --build`; demo seed via `--profile demo run --rm seed` |
 | P0 | PostgreSQL in production; migrations checked | As needed | No SQLite in prod |
 | P1 | CI (GitHub Actions): test, lint, migrate check | As needed | On push to main |
 | P1 | Structured logging (JSON) for production | As needed | For aggregators |

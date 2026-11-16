@@ -79,6 +79,84 @@ npm --prefix frontend run dev
 
 ---
 
+## اجرا با Docker (کل سرویس‌ها)
+
+کل استک — پایگاه‌داده PostgreSQL، Redis، API جنگو با Gunicorn، worker و beat سلری، و کنسول React پشت nginx — با یک فرمان اجرا می‌شود.
+
+**پیش‌نیاز:** Docker Engine ۲۴ یا جدیدتر و Docker Compose v2. برای حافظه حداقل ۲ گیگابایت در نظر بگیرید.
+
+### ۱) تنظیم متغیرهای محیطی
+
+```bash
+cp .env.docker.example .env
+```
+
+مقادیر پیش‌فرض برای اجرای محلی آماده‌اند. پیش از هر استقرار واقعی، `SECRET_KEY` و `DB_PASSWORD` را تغییر دهید و `DJANGO_ENV=production` بگذارید؛ entrypoint در حالت تولید شروع را با کلید ناامن رد می‌کند.
+
+### ۲) ساخت و اجرای همهٔ سرویس‌ها
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+اولین ساخت چند دقیقه طول می‌کشد (نصب وابستگی‌های پایتون و build فرانت‌اند). سرویس `backend` پس از آماده‌شدن پایگاه‌داده، migrationها و `collectstatic` را خودکار اجرا می‌کند.
+
+### ۳) ساخت کاربر ورود
+
+```bash
+docker compose exec backend python manage.py createsuperuser
+```
+
+سپس کنسول را روی **http://localhost:8080** باز کنید. رابط با همان میزبان API کار می‌کند؛ nginx مسیرهای `/api/`، `/admin/` و `/static/` را به جنگو می‌فرستد. مستندات API هم روی آدرس زیر در دسترس است:
+
+`http://localhost:8080/api/docs/`
+
+### ۴) دادهٔ نمونه (اختیاری)
+
+```bash
+docker compose --profile demo run --rm seed
+```
+
+این فرمان دادهٔ ساختگی `DEMO-C1` تا `DEMO-C3`، تراکنش‌ها، دستگاه/پذیرندهٔ نمونه و فهرست پایش ساختگی را می‌سازد. اجرای دوبارهٔ آن بی‌خطر است و فقط در حالت `DEBUG=True` کار می‌کند.
+
+### سرویس‌ها و پورت‌ها
+
+| سرویس | نقش | آدرس یا پورت میزبان |
+|---|---|---|
+| `frontend` | nginx + کنسول build‌شده، proxy برای API و admin | `http://localhost:8080` (`FRONTEND_PORT`) |
+| `backend` | Gunicorn + جنگو، migration و collectstatic در شروع | `http://localhost:8000` (`BACKEND_PORT`) |
+| `worker` | اجرای وظایف Celery (پایش صفی و ارتقا) | داخلی |
+| `beat` | زمان‌بندی دوره‌ای Celery | داخلی |
+| `db` | PostgreSQL 15 با volume ماندگار | داخلی، پورت منتشر نشده |
+| `redis` | صف و result backend سلری | داخلی، پورت منتشر نشده |
+| `seed` | بارگذاری یک‌بارهٔ دادهٔ نمونه (پروفایل `demo`) | — |
+
+پورت‌های `db` و `redis` عمداً منتشر نشده‌اند تا از بیرون قابل دسترسی نباشند.
+
+### فرمان‌های روزمره
+
+```bash
+docker compose logs -f backend          # مشاهدهٔ زندهٔ لاگ‌ها
+docker compose logs -f worker           # لاگ وظایف پس‌زمینه
+docker compose restart backend          # پس از تغییر تنظیمات
+docker compose down                     # توقف و حذف کانتینرها (داده‌ها می‌مانند)
+docker compose down -v                  # حذف کامل داده‌ها و volumeها
+docker compose exec backend python manage.py test aml
+```
+
+معادل کوتاه‌تر با Make: `make docker-up`، `make docker-seed`، `make docker-admin`، `make docker-logs SERVICE=worker` و `make docker-reset`.
+
+### نکته‌های تولید
+
+- `DJANGO_ENV=production`، `SECRET_KEY` واقعی و `DB_PASSWORD` غیرپیش‌فرض الزامی است.
+- TLS را در یک reverse proxy جلوی سرویس `frontend` پایان دهید و سپس `USE_HTTPS=True` بگذارید.
+- برای دسترسی از دامنه یا IP دیگر، `ALLOWED_HOSTS` و `CORS_ALLOWED_ORIGINS` را به‌روزرسانی کنید.
+- `VITE_API_BASE` را خالی بگذارید تا رابط هم‌مبدأ کار کند؛ فقط برای استقرار جداگانهٔ فرانت‌اند روی CDN مقداردهی کنید.
+- داده‌های `postgres_data`، `static_data` و `backend_logs` در volumeهای نام‌دار نگهداری می‌شوند؛ برنامهٔ پشتیبان‌گیری را برای `postgres_data` تعیین کنید.
+
+---
+
 ## نقش‌ها و دسترسی‌ها
 
 گروه‌ها را از مسیر **Admin → Users → Groups** به کاربر اختصاص دهید. کاربر ابرمدیر به همهٔ نقش‌ها دسترسی دارد.
